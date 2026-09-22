@@ -34,6 +34,7 @@ test("theme boot script persists only an explicit light or dark choice", () => {
   assert.match(THEME_BOOT_SCRIPT, /t==="light"\|\|t==="dark"/);
   assert.equal(THEME_BOOT_SCRIPT.includes("prefers-color-scheme"), false);
   assert.match(layout, /THEME_BOOT_SCRIPT/);
-  assert.match(layout, /beforeInteractive/);
+  assert.match(layout, /dangerouslySetInnerHTML/);
+  assert.match(layout, /<head>/);
   assert.match(layout, /suppressHydrationWarning/);
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useState } from "react";
 import {
   THEME_CHANGE_EVENT,
   THEME_STORAGE_KEY,
@@ -12,17 +12,10 @@ import {
 } from "@/lib/theme";
 
 export function ThemeToggle() {
-  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [label, setLabel] = useState<string | null>(null);
 
   useLayoutEffect(() => {
-    const button = buttonRef.current;
-    if (!button) {
-      return;
-    }
-
-    const syncLabel = () => {
-      button.setAttribute("aria-label", themeSwitchLabel(readAppliedTheme()));
-    };
+    const syncLabel = () => setLabel(themeSwitchLabel(readAppliedTheme()));
 
     const onStorage = (event: StorageEvent) => {
       if (event.key !== THEME_STORAGE_KEY) {
@@ -51,13 +44,13 @@ export function ThemeToggle() {
 
   return (
     <button
-      ref={buttonRef}
       type="button"
       className="theme-toggle"
+      aria-label={label ?? undefined}
       onClick={() => {
         const choice = nextTheme(readAppliedTheme());
         persistThemeChoice(choice);
-        buttonRef.current?.setAttribute("aria-label", themeSwitchLabel(choice));
+        setLabel(themeSwitchLabel(choice));
       }}
     >
       <span className="theme-when-light">

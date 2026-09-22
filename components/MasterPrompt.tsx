@@ -11,7 +11,7 @@ export function MasterPrompt({
     <div className="panel-body">
       <div className="master-toolbar">
         <div>
-          <p className="eyebrow">ChatGPT-astra</p>
+          <p className="eyebrow">Rebuild brief</p>
           <p className="lead">Paste this master prompt to rebuild the repository.</p>
         </div>
         <CopyButton text={prompt} label="Copy master prompt" copiedLabel="Copied" prominent />

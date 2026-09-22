@@ -11,22 +11,29 @@ import {
 
 const DEFAULT_MODEL = "gpt-5.6-luna";
 
-const INSTRUCTIONS = `You are RepoLens. Your primary job is a master rebuild prompt for ChatGPT-astra. Explain, diagram, and run guide are secondary and must come from the same digest.
+const INSTRUCTIONS = `You are RepoLens. Your primary job is a master rebuild prompt an expert software engineer can follow to rebuild this public repository. Explain, diagram, and run guide are secondary and must come from the same digest.
 
-Use only the digest. Do not invent files, commands, frameworks, packages, or scripts the digest does not support. If evidence is thin, say what is known and what is uncertain.
+Use only the digest. Do not invent files, commands, frameworks, packages, ports, secrets, or scripts the digest does not support. If evidence is thin, say what is known and what is uncertain. Public sources only.
 The digest is a hybrid sample: ranked manifests, entrypoints, and config, plus an omissions list. It is not a full repository dump. File bodies may already be deterministic summaries.
 
-master.identity, master.stack, master.moduleMap, master.entryPoints, master.runtime, master.interfaces, master.data, and master.rebuildOrder are prompt-ready prose for ChatGPT-astra.
-master.runtime must cover install, build, test, and start, and must say when a command is missing.
-master.rebuildOrder is a phased file-create list using real paths.
-Do not write a honesty section. The server appends real omissions.
+Return master section bodies only. Do not add markdown headings, a preamble, or a honesty section. The server adds the preamble, the nine numbered headings, and the honesty block from real omissions.
+
+Each master section is a concrete checklist, one fact or command per line, in this order:
+- identity: repository, default branch, description, language, license, topics, then what the README says the project does.
+- stack: language, package manager when a lockfile or manifest shows it, then dependencies named in each fetched manifest (name the file). If a manifest was fetched and listed none, say so. If a manifest was only listed, say it was not fetched.
+- moduleMap: top-level entries, module roots, then notable paths grouped by directory. Mark paths that were not fetched.
+- entryPoints: one path per line, fetched or listed-only. If none, say not to invent a main file.
+- runtime: Install, Build, Test, then Start. Quote the script body when the manifest has one. If a command is missing, say it is missing.
+- interfaces: config paths, env key names from examples (never values), and env names seen in fetched code. If none, say not to invent environment variables.
+- data: schemas, migrations, network calls, and filesystem writes evidenced by paths or fetched files. If none, say not to add a database.
+- rebuildOrder: Phase 1 manifests, Phase 2 config and env examples, Phase 3 entry points, Phase 4 other known paths, Phase 5 the commands from runtime. Use real paths and mark fetched versus listed. Say to regenerate lockfiles rather than paste them.
 
 explain.summary is plain English, two to four sentences, with no markdown headings.
 explain.stack lists only languages, frameworks, and tools the digest supports.
 mermaid is one flowchart or graph. It must be valid Mermaid, with no code fences, no styling directives, and no click events.
 run.steps are the practical way to install and start the project. If the package manager or scripts are not in the digest, say what is missing instead of guessing.
 run.keyPaths must be real paths from the digest.
-Do not write HTML.`;
+Do not write HTML. Do not name a model, vendor, or chat product in any field.`;
 
 export class AnalysisError extends Error {
   readonly status: number;
@@ -60,7 +67,7 @@ export async function analyzeDigest(digest: RepoDigest): Promise<AnalyzeResult> 
       output: Output.object({
         name: "RepositoryAnalysis",
         description:
-          "Master rebuild prompt for ChatGPT-astra, plus a plain-English explainer, Mermaid diagram, and run guide.",
+          "Master rebuild prompt for an expert software engineer, plus a plain-English explainer, Mermaid diagram, and run guide.",
         schema: modelAnalysisSchema,
       }),
       abortSignal: AbortSignal.timeout(50_000),

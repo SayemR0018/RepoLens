@@ -1,14 +1,18 @@
 import Link from "next/link";
 import { Analyzer } from "@/components/Analyzer";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function HomePage() {
   return (
     <div className="shell">
       <header className="topbar">
-        <Link className="brand" href="/">
-          <span className="mark" aria-hidden="true" />
-          RepoLens
-        </Link>
+        <div className="topbar-start">
+          <Link className="brand" href="/">
+            <span className="mark" aria-hidden="true" />
+            RepoLens
+          </Link>
+          <ThemeToggle />
+        </div>
         <p>Public GitHub repositories</p>
       </header>
       <main>

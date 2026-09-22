@@ -1,6 +1,6 @@
 # RepoLens
 
-Paste a public GitHub URL. The primary result is a **master prompt** for ChatGPT-astra that can rebuild the project. The same response also includes:
+Paste a public GitHub URL. The primary result is a **master prompt**: a nine-section rebuild brief an engineer can follow to recreate the project. The same response also includes:
 
 1. **Explain** — a plain-English reading of the project
 2. **Diagram** — an architecture diagram rendered in the browser

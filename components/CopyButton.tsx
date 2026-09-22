@@ -6,10 +6,12 @@ export function CopyButton({
   text,
   label = "Copy",
   copiedLabel = "Copied",
+  prominent = false,
 }: {
   text: string;
   label?: string;
   copiedLabel?: string;
+  prominent?: boolean;
 }) {
   const [note, setNote] = useState<string | null>(null);
   const timer = useRef<number | null>(null);
@@ -33,7 +35,7 @@ export function CopyButton({
   return (
     <button
       type="button"
-      className="copy-button"
+      className={prominent ? "copy-button copy-button-primary" : "copy-button"}
       aria-live="polite"
       disabled={!text}
       onClick={() => {

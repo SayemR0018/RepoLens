@@ -582,6 +582,36 @@ a {
   color: var(--muted);
 }
 
+.master-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.master-toolbar .lead {
+  margin: 0.3rem 0 0;
+  color: var(--foreground);
+  font-size: 1.05rem;
+  line-height: 1.45;
+}
+
+.master-prompt {
+  overflow: auto;
+  max-height: 32rem;
+  margin: 0.85rem 0 0;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel-muted);
+  color: var(--foreground);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
 .copy-button,
 .source-toggle,
 .diagram-zoom button {
@@ -592,6 +622,14 @@ a {
   font-size: 0.82rem;
   font-weight: 700;
   padding: 0.35rem 0.7rem;
+}
+
+.copy-button.copy-button-primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: transparent;
+  font-size: 0.95rem;
+  padding: 0.55rem 0.95rem;
 }
 
 .diagram-toolbar {
@@ -713,7 +751,8 @@ a {
   .hero-row,
   .repo-header,
   .topbar,
-  .step-row {
+  .step-row,
+  .master-toolbar {
     align-items: stretch;
     flex-direction: column;
   }

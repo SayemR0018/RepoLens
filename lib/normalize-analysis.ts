@@ -1,4 +1,10 @@
 import type { RepoDigest } from "./github";
+import {
+  assembleMasterPrompt,
+  mergeMasterSections,
+  readModelSections,
+  sectionsFromDigest,
+} from "./masterPrompt";
 import { flowchartFromRootFolders, readMermaidSource } from "./mermaid-text";
 
 const LIMITS = {
@@ -37,6 +43,15 @@ export function normalizeAnalysis(output: unknown, digest: RepoDigest) {
   const line = groundedLine(digest);
 
   const description = digest.description.trim() || trimmed(record?.description);
+  const sections = mergeMasterSections(
+    sectionsFromDigest(digest),
+    readModelSections(asRecord(record?.master)),
+  );
+  const masterPrompt = assembleMasterPrompt(digest.owner, digest.repo, sections);
+  const omissions = digest.omissions
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0)
+    .slice(0, 40);
   const summary = trimmed(explain?.summary) || line;
   const purpose = trimmed(explain?.purpose) || line;
   const audience = trimmed(explain?.audience) || line;
@@ -58,6 +73,8 @@ export function normalizeAnalysis(output: unknown, digest: RepoDigest) {
     defaultBranch: digest.defaultBranch.trim(),
     description,
     source: "live" as const,
+    masterPrompt,
+    omissions,
     explain: {
       summary,
       purpose,

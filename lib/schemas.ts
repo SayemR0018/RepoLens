@@ -52,6 +52,13 @@ export const analyzeResultSchema = z.object({
   defaultBranch: nonEmpty,
   description: z.string(),
   source: z.enum(["mock", "live"]),
+  masterPrompt: nonEmpty.describe(
+    "ChatGPT-astra rebuild prompt with identity, stack, module map, entry points, runtime, interfaces, data, rebuild order, and honesty.",
+  ),
+  omissions: z
+    .array(nonEmpty)
+    .max(40)
+    .describe("Paths and limits the digest skipped, clipped, or left unfetched."),
   explain: explainPanelSchema,
   mermaid: nonEmpty.describe(
     "A single valid Mermaid flowchart or graph with no code fences.",
@@ -65,7 +72,39 @@ export const analyzeResultSchema = z.object({
  * Constraints that OpenAI strict JSON Schema rejects (min/max) stay on
  * `analyzeResultSchema`, which validates the response before it is returned.
  */
+export const modelMasterSchema = z.object({
+  identity: z
+    .string()
+    .describe("Section 1. Repository identity for the ChatGPT-astra rebuild prompt. Grounded in the digest."),
+  stack: z
+    .string()
+    .describe("Section 2. Languages, frameworks, and dependencies named by manifests. No guessed packages."),
+  moduleMap: z.string().describe("Section 3. How directories and packages relate."),
+  entryPoints: z
+    .string()
+    .describe("Section 4. Process and UI entry files that exist in the digest."),
+  runtime: z
+    .string()
+    .describe(
+      "Section 5. Install, build, test, and start commands evidenced by manifests or the README. Say what is missing instead of inventing scripts.",
+    ),
+  interfaces: z
+    .string()
+    .describe("Section 6. Env vars, config files, and external interfaces named in the digest."),
+  data: z
+    .string()
+    .describe("Section 7. Data stores and side effects evidenced by paths or fetched files."),
+  rebuildOrder: z
+    .string()
+    .describe(
+      "Section 8. Phased file-create list. Manifests first, then config, entrypoints, then other known paths.",
+    ),
+});
+
 export const modelAnalysisSchema = z.object({
+  master: modelMasterSchema.describe(
+    "Primary artefact. Prompt-ready sections for ChatGPT-astra. Do not write the honesty section; the server appends real omissions.",
+  ),
   description: z
     .string()
     .describe("One-sentence description grounded in the digest. Empty if unknown."),

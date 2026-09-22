@@ -3,6 +3,7 @@
 import { useEffect, useId, useState, type KeyboardEvent } from "react";
 import dynamic from "next/dynamic";
 import { Explain } from "@/components/Explain";
+import { MasterPrompt } from "@/components/MasterPrompt";
 import { RunGuide } from "@/components/RunGuide";
 import type { AnalyzeResult } from "@/lib/schemas";
 
@@ -15,6 +16,7 @@ const Diagram = dynamic(
 );
 
 const TABS = [
+  { id: "prompt", label: "Master Prompt" },
   { id: "explain", label: "Explain" },
   { id: "diagram", label: "Diagram" },
   { id: "run", label: "Run" },
@@ -29,8 +31,9 @@ export function ResultTabs({
 }) {
   const baseId = useId();
   const wide = useWideLayout();
-  const [active, setActive] = useState<TabId>("explain");
+  const [active, setActive] = useState<TabId>("prompt");
   const [open, setOpen] = useState<Record<TabId, boolean>>({
+    prompt: true,
     explain: true,
     diagram: true,
     run: true,
@@ -68,6 +71,9 @@ export function ResultTabs({
   }
 
   function panel(id: TabId) {
+    if (id === "prompt") {
+      return <MasterPrompt prompt={result.masterPrompt} omissions={result.omissions} />;
+    }
     if (id === "explain") {
       return <Explain explain={result.explain} />;
     }

@@ -1,4 +1,4 @@
-const STAGES = ["Fetching tree", "Reading files", "Generating"] as const;
+const STAGES = ["Fetching tree", "Reading files", "Writing prompt"] as const;
 
 export function Progress({ stage }: { stage: number }) {
   const current = STAGES[Math.min(Math.max(stage, 0), STAGES.length - 1)];
@@ -21,6 +21,7 @@ export function Progress({ stage }: { stage: number }) {
       <p className="progress-current">{current}</p>
       <div className="skeleton" aria-hidden="true">
         <div className="skeleton-tabs">
+          <span className="skeleton-block skeleton-pill" />
           <span className="skeleton-block skeleton-pill" />
           <span className="skeleton-block skeleton-pill" />
           <span className="skeleton-block skeleton-pill" />

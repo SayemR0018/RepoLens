@@ -20,7 +20,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     color-scheme: dark;
     --background: #141311;
     --foreground: #f3efe7;
@@ -38,6 +38,25 @@
     --diagram-ink: #f7f2ea;
     --diagram-stroke: #b7ebe6;
   }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #141311;
+  --foreground: #f3efe7;
+  --panel: #1d1b18;
+  --panel-muted: #26231f;
+  --line: #3a352e;
+  --muted: #b7b0a4;
+  --accent: #8fd4ce;
+  --accent-ink: #102220;
+  --copper: #e08a62;
+  --danger: #ffb4a8;
+  --danger-bg: #3a2420;
+  --shadow: 0 16px 40px rgb(0 0 0 / 28%);
+  --diagram-canvas: #161513;
+  --diagram-ink: #f7f2ea;
+  --diagram-stroke: #b7ebe6;
 }
 
 @theme inline {
@@ -109,6 +128,13 @@ a {
   color: var(--muted);
 }
 
+.topbar-start {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
 .brand {
   display: inline-flex;
   align-items: center;
@@ -116,6 +142,44 @@ a {
   font-weight: 650;
   letter-spacing: -0.03em;
   text-decoration: none;
+}
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--foreground);
+  font-family: var(--font-sans), sans-serif;
+  font-size: 0.92rem;
+  font-weight: 700;
+  padding: 0.35rem 0.9rem;
+}
+
+.theme-when-dark {
+  display: none;
+}
+
+:root[data-theme="dark"] .theme-when-light {
+  display: none;
+}
+
+:root[data-theme="dark"] .theme-when-dark {
+  display: inline;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .theme-when-light {
+    display: none;
+  }
+
+  :root:not([data-theme="light"]) .theme-when-dark {
+    display: inline;
+  }
 }
 
 .mark {
@@ -188,6 +252,7 @@ a {
 .diagram-zoom button,
 .examples button,
 .accordion-trigger,
+.theme-toggle,
 .tab {
   font-family: var(--font-sans), sans-serif;
   cursor: pointer;
@@ -755,6 +820,14 @@ a {
   .master-toolbar {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .topbar-start {
+    width: 100%;
+  }
+
+  .theme-toggle {
+    margin-left: auto;
   }
 
   .hero-row button {

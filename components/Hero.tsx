@@ -31,7 +31,7 @@ export function Hero({
     <section className="hero">
       <h1>Rebuild any public repository.</h1>
       <p className="hero-lead">
-        A master prompt for ChatGPT-astra, plus a plain-English reading, a diagram, and the steps to run it.
+        A master rebuild prompt, plus a plain-English reading, a diagram, and the steps to run it.
       </p>
       <form className="hero-form" onSubmit={onSubmit}>
         <label htmlFor="repo-url">Repository</label>
@@ -61,7 +61,7 @@ export function Hero({
           Sample response
         </label>
         <p className="hint">
-          Sample mode skips GitHub and OpenAI and returns a master prompt. Live mode uses the
+          Sample mode skips the network and returns a master prompt. Live mode uses the
           keys configured on the server.
         </p>
       </form>

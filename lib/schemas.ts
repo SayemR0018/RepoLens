@@ -53,7 +53,7 @@ export const analyzeResultSchema = z.object({
   description: z.string(),
   source: z.enum(["mock", "live"]),
   masterPrompt: nonEmpty.describe(
-    "ChatGPT-astra rebuild prompt with identity, stack, module map, entry points, runtime, interfaces, data, rebuild order, and honesty.",
+    "Rebuild brief with identity, stack, module map, entry points, runtime, interfaces, data, rebuild order, and honesty.",
   ),
   omissions: z
     .array(nonEmpty)
@@ -75,35 +75,49 @@ export const analyzeResultSchema = z.object({
 export const modelMasterSchema = z.object({
   identity: z
     .string()
-    .describe("Section 1. Repository identity for the ChatGPT-astra rebuild prompt. Grounded in the digest."),
+    .describe(
+      "Section 1 body only. One fact per line: repository, branch, description, language, license, topics, README purpose. No heading.",
+    ),
   stack: z
     .string()
-    .describe("Section 2. Languages, frameworks, and dependencies named by manifests. No guessed packages."),
-  moduleMap: z.string().describe("Section 3. How directories and packages relate."),
+    .describe(
+      "Section 2 body only. Language, package manager if evidenced, then dependencies named by each fetched manifest. No guessed packages. No heading.",
+    ),
+  moduleMap: z
+    .string()
+    .describe(
+      "Section 3 body only. Top level, module roots, then notable paths grouped by directory. Mark unfetched paths. No heading.",
+    ),
   entryPoints: z
     .string()
-    .describe("Section 4. Process and UI entry files that exist in the digest."),
+    .describe(
+      "Section 4 body only. One entry path per line, marked fetched or listed-only. No heading.",
+    ),
   runtime: z
     .string()
     .describe(
-      "Section 5. Install, build, test, and start commands evidenced by manifests or the README. Say what is missing instead of inventing scripts.",
+      "Section 5 body only. Install, Build, Test, then Start, quoting script bodies. Say when a command is missing. No heading.",
     ),
   interfaces: z
     .string()
-    .describe("Section 6. Env vars, config files, and external interfaces named in the digest."),
+    .describe(
+      "Section 6 body only. Config paths and env key names, never values. Say when none were found. No heading.",
+    ),
   data: z
     .string()
-    .describe("Section 7. Data stores and side effects evidenced by paths or fetched files."),
+    .describe(
+      "Section 7 body only. Schemas, migrations, network calls, and filesystem writes that the digest evidences. No heading.",
+    ),
   rebuildOrder: z
     .string()
     .describe(
-      "Section 8. Phased file-create list. Manifests first, then config, entrypoints, then other known paths.",
+      "Section 8 body only. Phases 1-5: manifests, config, entry points, other known paths, then runtime commands. Real paths only. No heading.",
     ),
 });
 
 export const modelAnalysisSchema = z.object({
   master: modelMasterSchema.describe(
-    "Primary artefact. Prompt-ready sections for ChatGPT-astra. Do not write the honesty section; the server appends real omissions.",
+    "Primary artefact. Checklist bodies for the rebuild brief. Do not write headings or the honesty section; the server appends real omissions.",
   ),
   description: z
     .string()

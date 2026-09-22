@@ -77,7 +77,8 @@ test("normalizes empty mermaid and empty stack into a parseable analysis", () =>
   assert.match(parsed.data.mermaid, /app\//);
   assert.match(parsed.data.masterPrompt, /## 1\. Identity/);
   assert.match(parsed.data.masterPrompt, /## 9\. Honesty/);
-  assert.match(parsed.data.masterPrompt, /ChatGPT-astra/);
+  assert.match(parsed.data.masterPrompt, /expert software engineer rebuilding this repository/);
+  assert.equal(/astra|chatgpt/i.test(parsed.data.masterPrompt), false);
   assert.deepEqual(parsed.data.omissions, []);
   assert.equal(UNSAFE_SOURCE.test(parsed.data.mermaid), false);
   assert.equal(readMermaidSource(parsed.data.mermaid), parsed.data.mermaid);

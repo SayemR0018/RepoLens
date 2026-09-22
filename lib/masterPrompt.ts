@@ -46,13 +46,18 @@ export function assembleMasterPrompt(
   repo: string,
   sections: MasterSections,
 ): string {
+  const target = `${owner.trim()}/${repo.trim()}`;
   const preamble = [
-    `You are ChatGPT-astra. Rebuild ${owner.trim()}/${repo.trim()} as a working project from the facts in this prompt.`,
-    "Create files in the phased order in section 8.",
-    "Do not invent packages, commands, environment variables, or files that are not listed.",
-    "Where a fact is missing, leave a TODO comment instead of guessing.",
-    "Section 9 lists source that was not read. Do not pretend those paths were inspected.",
-  ].join(" ");
+    "You are an expert software engineer rebuilding this repository.",
+    `Rebuild ${target} as a working project from the public facts in this brief.`,
+    "Read the nine sections in order and follow them as written: identity, stack and dependencies, module map, entry points, runtime, interfaces and env, data and side effects, rebuild order, honesty.",
+    "Create files only in the phased order in section 8.",
+    "Use only packages, commands, environment variables, ports, and paths that a section names.",
+    "Where a fact is missing, leave a TODO comment and stop that step instead of guessing.",
+    "Section 9 lists source that was not read. Do not invent those files, and do not claim they were inspected.",
+    "If an earlier section conflicts with section 9, section 9 wins.",
+    "This brief is public-only. Do not assume private configuration or secrets.",
+  ].join("\n");
   const body = MASTER_SECTION_TITLES.map((title, index) => {
     const key = SECTION_KEYS[index];
     const text = sections[key].trim() || "Not evidenced by the digest.";

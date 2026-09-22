@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { CopyButton } from "@/components/CopyButton";
 import { isDrawableViewBox, readViewBox, viewBoxFromSvg } from "@/lib/diagram-layout";
 import { cleanMermaidSource, readMermaidSource } from "@/lib/mermaid-text";
+import { THEME_CHANGE_EVENT, readAppliedTheme, type ThemeChoice } from "@/lib/theme";
 
 let renderCount = 0;
 
@@ -174,19 +175,27 @@ export function Diagram({ chart }: { chart: string }) {
   );
 }
 
-function useColorScheme(): "dark" | "light" {
-  const [scheme, setScheme] = useState<"dark" | "light">(() =>
-    typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches
-      ? "dark"
-      : "light",
+function useColorScheme(): ThemeChoice {
+  const [scheme, setScheme] = useState<ThemeChoice>(() =>
+    typeof document === "undefined" ? "light" : readAppliedTheme(),
   );
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const apply = () => setScheme(media.matches ? "dark" : "light");
+    const apply = () => setScheme(readAppliedTheme());
     apply();
     media.addEventListener("change", apply);
-    return () => media.removeEventListener("change", apply);
+    window.addEventListener(THEME_CHANGE_EVENT, apply);
+    const observer = new MutationObserver(apply);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+    return () => {
+      media.removeEventListener("change", apply);
+      window.removeEventListener(THEME_CHANGE_EVENT, apply);
+      observer.disconnect();
+    };
   }, []);
 
   return scheme;

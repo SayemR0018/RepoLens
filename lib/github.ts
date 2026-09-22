@@ -1,47 +1,95 @@
 const API_ROOT = "https://api.github.com";
 const README_LIMIT = 8_000;
 const FILE_LIMIT = 3_500;
-const DIGEST_LIMIT = 24_000;
-const MAX_KEY_FILES = 6;
+export const DIGEST_CHAR_LIMIT = 24_000;
+export const MAX_KEY_FILES = 6;
 const MAX_NOTABLE_PATHS = 32;
+const MAX_LISTED_PATHS = 32;
 const MAX_FILE_BYTES = 100_000;
+const ROLE_CAPS = { manifest: 3, entrypoint: 2, config: 2 } as const;
 
-const RANKED_FILES = [
-  "package.json",
-  "pnpm-workspace.yaml",
-  "pyproject.toml",
-  "requirements.txt",
-  "pipfile",
-  "go.mod",
-  "cargo.toml",
-  "gemfile",
-  "composer.json",
-  "pom.xml",
-  "build.gradle",
-  "build.gradle.kts",
-  "dockerfile",
-  "docker-compose.yml",
-  "compose.yaml",
-  "makefile",
-  "next.config.ts",
-  "next.config.mjs",
-  "next.config.js",
-  "app/page.tsx",
-  "src/main.ts",
-  "src/main.py",
-  "src/index.ts",
-  "src/index.js",
-  "main.go",
-  "src/lib.rs",
-] as const;
+const MANIFEST_SCORE: Record<string, number> = {
+  "package.json": 100,
+  "pnpm-workspace.yaml": 99,
+  "turbo.json": 97,
+  "nx.json": 97,
+  "lerna.json": 96,
+  "pyproject.toml": 95,
+  "go.mod": 95,
+  "cargo.toml": 95,
+  "go.work": 93,
+  "pom.xml": 90,
+  "build.gradle": 90,
+  "build.gradle.kts": 90,
+  "requirements.txt": 90,
+  "pipfile": 88,
+  "gemfile": 88,
+  "composer.json": 88,
+  "mix.exs": 88,
+  "pubspec.yaml": 88,
+  "setup.py": 86,
+  "setup.cfg": 80,
+  "package.swift": 86,
+};
 
-const SKIP_FILE = [
-  /(^|\/)node_modules\//i,
-  /(^|\/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|cargo\.lock|gemfile\.lock)$/i,
-  /\.min\.(js|css)$/i,
-  /\.map$/i,
-  /\.(png|jpe?g|gif|webp|ico|pdf|zip|wasm|woff2?)$/i,
-];
+const ENTRY_SCORE: Record<string, number> = {
+  "main.ts": 86,
+  "main.tsx": 86,
+  "main.py": 86,
+  "main.go": 86,
+  "manage.py": 84,
+  "main.js": 84,
+  "main.jsx": 84,
+  "main.rs": 84,
+  "page.tsx": 82,
+  "lib.rs": 82,
+  "index.ts": 80,
+  "index.tsx": 80,
+  "wsgi.py": 80,
+  "asgi.py": 80,
+  "program.cs": 80,
+  "page.jsx": 80,
+  "server.ts": 78,
+  "index.js": 78,
+  "page.ts": 78,
+  "index.jsx": 78,
+  "app.py": 76,
+  "app.ts": 76,
+  "app.tsx": 76,
+  "server.js": 76,
+  "server.py": 76,
+  "main.rb": 76,
+  "main.php": 76,
+  "mod.rs": 74,
+};
+
+const CONFIG_SCORE: Record<string, number> = {
+  dockerfile: 74,
+  makefile: 72,
+  "docker-compose.yml": 72,
+  "docker-compose.yaml": 72,
+  "compose.yml": 70,
+  "compose.yaml": 70,
+  "next.config.ts": 70,
+  "next.config.mjs": 70,
+  "next.config.js": 70,
+  ".env.example": 68,
+  "vite.config.ts": 66,
+  ".env.sample": 66,
+  ".env.template": 66,
+  "nuxt.config.ts": 66,
+  "tsconfig.json": 64,
+  "vite.config.js": 64,
+  "astro.config.mjs": 64,
+  "svelte.config.js": 64,
+};
+
+const LOCK_FILE =
+  /(^|\/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|bun\.lockb?|cargo\.lock|gemfile\.lock|poetry\.lock|composer\.lock|go\.sum|packages\.lock\.json)$/i;
+const BINARY_OR_MINIFIED =
+  /\.(png|jpe?g|gif|webp|ico|pdf|zip|wasm|woff2?|mp4|mp3|mov|psd|bin|onnx|pt|safetensors|dmg|exe|dll|so|dylib|parquet|sqlite|db|map|min\.(js|css))$/i;
+const GENERATED_DIR =
+  /(^|\/)(node_modules|vendor|dist|build|coverage|\.next|out|target|__pycache__)\//i;
 
 export class GitHubError extends Error {
   readonly status: number;
@@ -56,6 +104,17 @@ export class GitHubError extends Error {
 export type RepoRef = {
   owner: string;
   repo: string;
+};
+
+export type RepoFile = {
+  path: string;
+  size?: number;
+};
+
+export type RankedFile = {
+  path: string;
+  role: "manifest" | "entrypoint" | "config";
+  score: number;
 };
 
 export type RepoDigest = {
@@ -75,12 +134,16 @@ export type RepoDigest = {
   readme: string | null;
   keyFiles: Array<{ path: string; content: string }>;
   treeTruncated: boolean;
+  omissions: string[];
+  manifests: string[];
+  entryPoints: string[];
+  configPaths: string[];
+  moduleRoots: string[];
+  lockfiles: string[];
 };
 
-type TreeItem = {
-  path: string;
+type TreeItem = RepoFile & {
   type: "blob" | "tree";
-  size?: number;
 };
 
 type RepoPayload = {
@@ -93,6 +156,12 @@ type RepoPayload = {
   license: { spdx_id?: string | null } | null;
   topics?: string[];
   owner: { login: string };
+};
+
+type FetchedFile = {
+  path: string;
+  status: "ok" | "missing" | "lfs";
+  content: string;
 };
 
 export function parseGitHubUrl(input: string): RepoRef {
@@ -135,6 +204,122 @@ export function parseGitHubUrl(input: string): RepoRef {
   return pair(shorthand[1], stripGitSuffix(shorthand[2]));
 }
 
+export function rankRebuildFiles(files: readonly RepoFile[]): RankedFile[] {
+  const ranked: RankedFile[] = [];
+  for (const file of files) {
+    if (ignoredForRanking(file)) {
+      continue;
+    }
+    const scored = scoreFile(file.path);
+    if (scored) {
+      ranked.push({ path: file.path, role: scored.role, score: scored.score });
+    }
+  }
+  ranked.sort((left, right) => right.score - left.score || left.path.localeCompare(right.path));
+  return ranked;
+}
+
+export function selectKeyPaths(files: readonly RepoFile[]): string[] {
+  const ranked = rankRebuildFiles(files);
+  const chosen: string[] = [];
+  const counts: Record<RankedFile["role"], number> = {
+    manifest: 0,
+    entrypoint: 0,
+    config: 0,
+  };
+  const roles: RankedFile["role"][] = ["manifest", "entrypoint", "config"];
+  for (const role of roles) {
+    for (const item of ranked) {
+      if (chosen.length >= MAX_KEY_FILES) {
+        return chosen;
+      }
+      if (item.role !== role || chosen.includes(item.path)) {
+        continue;
+      }
+      if (counts[role] >= ROLE_CAPS[role]) {
+        break;
+      }
+      chosen.push(item.path);
+      counts[role] += 1;
+    }
+  }
+  for (const item of ranked) {
+    if (chosen.length >= MAX_KEY_FILES) {
+      break;
+    }
+    if (!chosen.includes(item.path)) {
+      chosen.push(item.path);
+    }
+  }
+  return chosen;
+}
+
+export function collectOmissions(
+  files: readonly RepoFile[],
+  selected: readonly string[],
+  treeTruncated: boolean,
+): string[] {
+  const generated: string[] = [];
+  const locks: string[] = [];
+  const binaries: string[] = [];
+  const oversized: string[] = [];
+  const secrets: string[] = [];
+
+  for (const file of files) {
+    if (isGenerated(file.path)) {
+      generated.push(file.path);
+      continue;
+    }
+    if (isLockFile(file.path)) {
+      locks.push(file.path);
+      continue;
+    }
+    if (isBinaryOrMinified(file.path)) {
+      binaries.push(file.path);
+      continue;
+    }
+    if (isSecretEnv(file.path)) {
+      secrets.push(file.path);
+      continue;
+    }
+    if ((file.size ?? 0) > MAX_FILE_BYTES) {
+      oversized.push(file.path);
+    }
+  }
+
+  const omissions: string[] = [];
+  if (treeTruncated) {
+    omissions.push(
+      "GitHub truncated the recursive tree, so paths beyond the listing were not ranked or fetched.",
+    );
+  }
+  pushListed(omissions, "Skipped generated or vendor paths", generated);
+  pushListed(omissions, "Skipped lockfiles", locks);
+  pushListed(omissions, "Skipped binary, asset, or minified files", binaries);
+  pushListed(omissions, "Skipped files over the 100000-byte cap", oversized);
+  pushListed(omissions, "Skipped env files that may contain secrets", secrets);
+
+  const selectedSet = new Set(selected);
+  const unfetched = rankRebuildFiles(files)
+    .map((item) => item.path)
+    .filter((path) => !selectedSet.has(path));
+  pushListed(omissions, "Not fetched (outside the key-file cap)", unfetched);
+  return omissions;
+}
+
+export function classifyFileContent(content: string): "text" | "empty" | "binary" | "lfs" {
+  if (!content) {
+    return "empty";
+  }
+  if (content.includes("\u0000")) {
+    return "binary";
+  }
+  if (/^version https:\/\/git-lfs\.github\.com\/spec\/v1/m.test(content)) {
+    return "lfs";
+  }
+  return "text";
+}
+
 export async function buildDigest(ref: RepoRef): Promise<RepoDigest> {
   const repo = await fetchRepo(ref);
   if (repo.private) {
@@ -151,17 +336,49 @@ export async function buildDigest(ref: RepoRef): Promise<RepoDigest> {
     fetchReadme(owner, name),
   ]);
 
-  const files = tree.items.filter((item) => item.type === "blob");
+  const blobs = tree.items.filter((item) => item.type === "blob");
   const directories = tree.items.filter((item) => item.type === "tree");
-  const keyPaths = pickKeyFiles(files);
-  const keyFiles = (
-    await Promise.all(
-      keyPaths.map(async (path) => {
-        const content = await fetchRawFile(owner, name, repo.default_branch, path);
-        return content ? { path, content: clip(content, FILE_LIMIT) } : null;
-      }),
-    )
-  ).filter((file): file is { path: string; content: string } => file !== null);
+  const files: RepoFile[] = blobs.map((item) => ({ path: item.path, size: item.size }));
+  const ranked = rankRebuildFiles(files);
+  const keyPaths = selectKeyPaths(files);
+  const omissions = collectOmissions(files, keyPaths, tree.truncated);
+  const fetched = await Promise.all(
+    keyPaths.map((path) => fetchRawFile(owner, name, repo.default_branch, path)),
+  );
+
+  const keyFiles: Array<{ path: string; content: string }> = [];
+  const missing: string[] = [];
+  const lfs: string[] = [];
+  const clipped: string[] = [];
+  for (const file of fetched) {
+    if (file.status === "missing") {
+      missing.push(file.path);
+      continue;
+    }
+    if (file.status === "lfs") {
+      lfs.push(file.path);
+      continue;
+    }
+    if (file.content.length > FILE_LIMIT) {
+      clipped.push(file.path);
+    }
+    keyFiles.push({ path: file.path, content: clip(file.content, FILE_LIMIT) });
+  }
+  pushListed(omissions, "Could not read", missing);
+  pushListed(omissions, "Git LFS pointers were not expanded", lfs);
+  pushListed(omissions, `Clipped key file bodies to ${FILE_LIMIT} characters`, clipped);
+
+  let readmeText: string | null = null;
+  if (readme) {
+    if (classifyFileContent(readme) === "lfs") {
+      omissions.push("Git LFS pointer was not expanded: README.");
+    } else if (classifyFileContent(readme) === "text") {
+      if (readme.length > README_LIMIT) {
+        omissions.push(`Clipped README to ${README_LIMIT} characters.`);
+      }
+      readmeText = clip(readme, README_LIMIT);
+    }
+  }
 
   return {
     owner,
@@ -176,16 +393,29 @@ export async function buildDigest(ref: RepoRef): Promise<RepoDigest> {
     directoryCount: directories.length,
     topLevel: topLevelEntries(tree.items),
     extensions: extensionCounts(files),
-    notablePaths: notablePaths(files),
-    readme: readme ? clip(readme, README_LIMIT) : null,
+    notablePaths: notablePaths(files, ranked),
+    readme: readmeText,
     keyFiles,
     treeTruncated: tree.truncated,
+    omissions: omissions.slice(0, 40),
+    manifests: pathsForRole(ranked, "manifest"),
+    entryPoints: pathsForRole(ranked, "entrypoint"),
+    configPaths: pathsForRole(ranked, "config"),
+    moduleRoots: moduleRoots(tree.items, ranked),
+    lockfiles: files
+      .filter((file) => isLockFile(file.path) && !isGenerated(file.path))
+      .map((file) => file.path)
+      .slice(0, 16),
   };
 }
 
-export function formatDigest(digest: RepoDigest): string {
+export function formatDigest(
+  digest: RepoDigest,
+  options?: { limit?: number | null },
+): string {
   const lines: string[] = [
     `Repository: ${digest.owner}/${digest.repo}`,
+    "Digest kind: hybrid. Ranked manifests, entrypoints, and config only. This is not a full repository dump.",
     `Default branch: ${digest.defaultBranch}`,
     `Description: ${digest.description || "(none)"}`,
     `Primary language: ${digest.language ?? "(unknown)"}`,
@@ -204,10 +434,28 @@ export function formatDigest(digest: RepoDigest): string {
     "Extensions:",
     ...digest.extensions.map((entry) => `- ${entry.ext}: ${entry.count}`),
     "",
+    "Module roots:",
+    ...(digest.moduleRoots.length > 0 ? digest.moduleRoots.map((path) => `- ${path}`) : ["- (none)"]),
+    "",
+    "Manifests:",
+    ...(digest.manifests.length > 0 ? digest.manifests.map((path) => `- ${path}`) : ["- (none)"]),
+    "",
+    "Entry points:",
+    ...(digest.entryPoints.length > 0 ? digest.entryPoints.map((path) => `- ${path}`) : ["- (none)"]),
+    "",
+    "Config:",
+    ...(digest.configPaths.length > 0 ? digest.configPaths.map((path) => `- ${path}`) : ["- (none)"]),
+    "",
+    "Lockfiles (not fetched):",
+    ...(digest.lockfiles.length > 0 ? digest.lockfiles.map((path) => `- ${path}`) : ["- (none)"]),
+    "",
     "Notable paths:",
     ...(digest.notablePaths.length > 0
       ? digest.notablePaths.map((path) => `- ${path}`)
       : ["- (none)"]),
+    "",
+    "Omissions:",
+    ...(digest.omissions.length > 0 ? digest.omissions.map((item) => `- ${item}`) : ["- (none recorded)"]),
     "",
     "README:",
     digest.readme ?? "(no README)",
@@ -224,10 +472,11 @@ export function formatDigest(digest: RepoDigest): string {
   }
 
   const text = lines.join("\n");
-  if (text.length <= DIGEST_LIMIT) {
+  const limit = options?.limit === undefined ? DIGEST_CHAR_LIMIT : options.limit;
+  if (limit === null || text.length <= limit) {
     return text;
   }
-  return `${text.slice(0, DIGEST_LIMIT)}\n…[digest truncated]`;
+  return `${text.slice(0, limit)}\n…[digest truncated]`;
 }
 
 function pair(owner: string, repo: string): RepoRef {
@@ -319,11 +568,7 @@ async function fetchReadme(owner: string, repo: string): Promise<string | null> 
   if (!response.ok) {
     throw await toGitHubError(response);
   }
-  const text = await response.text();
-  if (text.includes("\u0000")) {
-    return null;
-  }
-  return text;
+  return response.text();
 }
 
 async function fetchRawFile(
@@ -331,29 +576,41 @@ async function fetchRawFile(
   repo: string,
   branch: string,
   path: string,
-): Promise<string | null> {
+): Promise<FetchedFile> {
   const encodedPath = path.split("/").map(encodeURIComponent).join("/");
-  const url = `https://raw.githubusercontent.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${encodeURIComponent(branch)}/${encodedPath}`;
-  const response = await fetch(url, {
-    headers: { "User-Agent": "RepoLens", Accept: "text/plain" },
-    signal: AbortSignal.timeout(20_000),
-    cache: "no-store",
-  });
+  const response = await githubFetch(
+    `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodedPath}?ref=${encodeURIComponent(branch)}`,
+    "application/vnd.github.raw",
+  );
+  if (response.status === 404) {
+    return { path, status: "missing", content: "" };
+  }
   if (!response.ok) {
-    return null;
+    const error = await toGitHubError(response);
+    if (error.status === 429) {
+      throw error;
+    }
+    return { path, status: "missing", content: "" };
   }
   const text = await response.text();
-  if (!text || text.includes("\u0000")) {
-    return null;
+  const kind = classifyFileContent(text);
+  if (kind === "empty" || kind === "binary") {
+    return { path, status: "missing", content: "" };
   }
-  return text;
+  if (kind === "lfs") {
+    return { path, status: "lfs", content: text };
+  }
+  return { path, status: "ok", content: text };
 }
 
 async function toGitHubError(response: Response): Promise<GitHubError> {
   const remaining = response.headers.get("x-ratelimit-remaining");
   if ((response.status === 403 || response.status === 429) && remaining === "0") {
+    const token = process.env.GITHUB_TOKEN?.trim();
     return new GitHubError(
-      "GitHub API rate limit reached. Set GITHUB_TOKEN to raise the limit and try again.",
+      token
+        ? "GitHub API rate limit reached for GITHUB_TOKEN. Wait for the limit to reset and try again."
+        : "GitHub API rate limit reached. Live multi-file fetch needs GITHUB_TOKEN to raise the limit. Set it and try again.",
       429,
     );
   }
@@ -414,55 +671,121 @@ function normalizeTree(entries: unknown[]): TreeItem[] {
   return items;
 }
 
-function pickKeyFiles(files: TreeItem[]): string[] {
-  const eligible = files.filter((file) => {
-    if ((file.size ?? 0) > MAX_FILE_BYTES) {
-      return false;
-    }
-    return !SKIP_FILE.some((pattern) => pattern.test(file.path));
-  });
-  const byLower = new Map(eligible.map((file) => [file.path.toLowerCase(), file.path]));
-  const chosen: string[] = [];
-  for (const name of RANKED_FILES) {
-    const hit = byLower.get(name);
-    if (hit && !chosen.includes(hit)) {
-      chosen.push(hit);
-    }
-    if (chosen.length >= MAX_KEY_FILES) {
-      return chosen;
-    }
+function scoreFile(path: string): { role: RankedFile["role"]; score: number } | null {
+  const base = basename(path);
+  const penalty = path.split("/").length - 1;
+  const manifest = MANIFEST_SCORE[base] ?? projectManifestScore(base);
+  if (manifest !== null) {
+    return { role: "manifest", score: manifest - penalty * 4 };
   }
-  for (const file of eligible) {
-    if (chosen.length >= MAX_KEY_FILES) {
-      break;
-    }
-    if (chosen.includes(file.path) || !isEntryLike(file.path)) {
-      continue;
-    }
-    chosen.push(file.path);
+  const entry = ENTRY_SCORE[base];
+  if (entry !== undefined && isPlausibleEntry(path, base)) {
+    return { role: "entrypoint", score: entry - penalty * 4 };
   }
-  return chosen;
+  const config = CONFIG_SCORE[base];
+  if (config !== undefined) {
+    return { role: "config", score: config - penalty * 4 };
+  }
+  return null;
 }
 
-function isEntryLike(path: string): boolean {
-  const base = path.split("/").pop()?.toLowerCase() ?? "";
-  if (base.startsWith("readme")) {
+function projectManifestScore(base: string): number | null {
+  if (base.endsWith(".csproj") || base.endsWith(".fsproj") || base === "solution.sln" || base.endsWith(".sln")) {
+    return 86;
+  }
+  return null;
+}
+
+function isPlausibleEntry(path: string, base: string): boolean {
+  if (/\.(test|spec)\./i.test(path) || /(^|\/)__tests__\//i.test(path)) {
     return false;
   }
-  return /^(main|index|app|server|mod)\.(py|go|rs|ts|tsx|js|jsx|rb|php)$/.test(base);
+  const depth = path.split("/").length - 1;
+  if (base === "page.tsx" || base === "page.jsx" || base === "page.ts") {
+    return /(^|\/)(app|pages)\//.test(path);
+  }
+  if (base === "main.go" && /(^|\/)cmd\//.test(path)) {
+    return depth <= 4;
+  }
+  if (base === "lib.rs" || base === "main.rs") {
+    return depth <= 3;
+  }
+  return depth <= 3;
 }
 
-function notablePaths(files: TreeItem[]): string[] {
-  const ranked = new Set<string>(RANKED_FILES);
-  const preferred: string[] = [];
-  const rest: string[] = [];
-  for (const file of files) {
-    if (SKIP_FILE.some((pattern) => pattern.test(file.path))) {
+function ignoredForRanking(file: RepoFile): boolean {
+  if ((file.size ?? 0) > MAX_FILE_BYTES) {
+    return true;
+  }
+  return (
+    isGenerated(file.path) ||
+    isLockFile(file.path) ||
+    isBinaryOrMinified(file.path) ||
+    isSecretEnv(file.path)
+  );
+}
+
+function isGenerated(path: string): boolean {
+  return GENERATED_DIR.test(path);
+}
+
+function isLockFile(path: string): boolean {
+  return LOCK_FILE.test(path);
+}
+
+function isBinaryOrMinified(path: string): boolean {
+  return BINARY_OR_MINIFIED.test(path) || /\.min\.(js|css)$/i.test(path);
+}
+
+function isSecretEnv(path: string): boolean {
+  const base = basename(path);
+  if (base !== ".env" && !base.startsWith(".env.")) {
+    return false;
+  }
+  return !/\.(example|sample|template)$/i.test(base);
+}
+
+function basename(path: string): string {
+  return path.split("/").pop()?.toLowerCase() ?? "";
+}
+
+function pathsForRole(ranked: readonly RankedFile[], role: RankedFile["role"]): string[] {
+  return ranked.filter((item) => item.role === role).map((item) => item.path).slice(0, MAX_LISTED_PATHS);
+}
+
+function moduleRoots(items: readonly TreeItem[], ranked: readonly RankedFile[]): string[] {
+  const roots = new Set<string>();
+  for (const item of ranked) {
+    if (item.role !== "manifest" || !item.path.includes("/")) {
       continue;
     }
-    if (ranked.has(file.path.toLowerCase()) || isEntryLike(file.path)) {
-      preferred.push(file.path);
-    } else if (file.path.split("/").length <= 3) {
+    roots.add(item.path.slice(0, item.path.lastIndexOf("/")));
+  }
+  const markers = new Set(["packages", "apps", "services", "crates", "libs", "modules"]);
+  for (const item of items) {
+    const top = item.path.split("/")[0];
+    if (top && markers.has(top)) {
+      roots.add(top);
+    }
+  }
+  return [...roots].sort((left, right) => left.localeCompare(right)).slice(0, 24);
+}
+
+function notablePaths(files: readonly RepoFile[], ranked: readonly RankedFile[]): string[] {
+  const preferred = ranked.map((item) => item.path);
+  const seen = new Set(preferred);
+  const rest: string[] = [];
+  for (const file of files) {
+    if (
+      seen.has(file.path) ||
+      isGenerated(file.path) ||
+      isLockFile(file.path) ||
+      isBinaryOrMinified(file.path) ||
+      isSecretEnv(file.path)
+    ) {
+      continue;
+    }
+    if (file.path.split("/").length <= 3) {
       rest.push(file.path);
     }
   }
@@ -487,9 +810,12 @@ function topLevelEntries(items: TreeItem[]): Array<{ name: string; kind: "dir" |
     .map(([name, kind]) => ({ name, kind }));
 }
 
-function extensionCounts(files: TreeItem[]): Array<{ ext: string; count: number }> {
+function extensionCounts(files: readonly RepoFile[]): Array<{ ext: string; count: number }> {
   const counts = new Map<string, number>();
   for (const file of files) {
+    if (isGenerated(file.path) || isLockFile(file.path)) {
+      continue;
+    }
     const base = file.path.split("/").pop() ?? file.path;
     const dot = base.lastIndexOf(".");
     const ext = dot > 0 ? base.slice(dot).toLowerCase() : "(none)";
@@ -499,6 +825,23 @@ function extensionCounts(files: TreeItem[]): Array<{ ext: string; count: number 
     .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
     .slice(0, 8)
     .map(([ext, count]) => ({ ext, count }));
+}
+
+function pushListed(omissions: string[], label: string, paths: readonly string[]): void {
+  const line = listLine(label, paths);
+  if (line) {
+    omissions.push(line);
+  }
+}
+
+function listLine(label: string, paths: readonly string[]): string | null {
+  if (paths.length === 0) {
+    return null;
+  }
+  const shown = paths.slice(0, 5);
+  const more = paths.length - shown.length;
+  const tail = more > 0 ? `, and ${more} more` : "";
+  return `${label}: ${shown.join(", ")}${tail}.`;
 }
 
 function clip(value: string, max: number): string {

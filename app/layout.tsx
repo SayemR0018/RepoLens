@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "RepoLens",
   description:
-    "Plain-English explainers, architecture diagrams, and run guides for public GitHub repositories.",
+    "Master rebuild prompts, explainers, architecture diagrams, and run guides for public GitHub repositories.",
 };
 
 export default function RootLayout({

@@ -86,7 +86,7 @@ export function Analyzer() {
 
       {status === "idle" ? (
         <p className="empty-state">
-          Nothing analyzed yet. The explainer, diagram, and run guide show up here.
+          Nothing analyzed yet. The master rebuild prompt shows up here, with an explainer, diagram, and run guide.
         </p>
       ) : null}
 
@@ -110,8 +110,8 @@ export function Analyzer() {
           {result.description ? <p className="repo-description">{result.description}</p> : null}
           <p className="digest-note">
             {result.source === "mock"
-              ? "This sample did not fetch the repository. The raw tree is never sent to the browser."
-              : "Built from a server-side digest of the tree, README, and key files. The raw tree stays on the server."}
+              ? "This sample did not fetch the repository. The master prompt is a fixture, and the raw tree is never sent to the browser."
+              : "Built from a capped server-side digest of ranked manifests, entrypoints, and config. The raw tree stays on the server."}
           </p>
           <ResultTabs result={result} />
         </div>

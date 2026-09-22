@@ -31,6 +31,12 @@ function digest(overrides: Partial<RepoDigest> = {}): RepoDigest {
     readme: "# widget",
     keyFiles: [{ path: "package.json", content: "{}" }],
     treeTruncated: false,
+    omissions: [],
+    manifests: ["package.json"],
+    entryPoints: ["src/index.ts"],
+    configPaths: [],
+    moduleRoots: ["src"],
+    lockfiles: [],
     ...overrides,
   };
 }
@@ -69,6 +75,10 @@ test("normalizes empty mermaid and empty stack into a parseable analysis", () =>
   assert.match(parsed.data.mermaid, /^flowchart TD/);
   assert.match(parsed.data.mermaid, /src\//);
   assert.match(parsed.data.mermaid, /app\//);
+  assert.match(parsed.data.masterPrompt, /## 1\. Identity/);
+  assert.match(parsed.data.masterPrompt, /## 9\. Honesty/);
+  assert.match(parsed.data.masterPrompt, /ChatGPT-astra/);
+  assert.deepEqual(parsed.data.omissions, []);
   assert.equal(UNSAFE_SOURCE.test(parsed.data.mermaid), false);
   assert.equal(readMermaidSource(parsed.data.mermaid), parsed.data.mermaid);
 });
@@ -151,6 +161,8 @@ test("shape error names the first zod issue path and message", () => {
       stack: ["TypeScript"],
       highlights: ["A highlight"],
     },
+    masterPrompt: "Rebuild the widget from the digest.",
+    omissions: [],
     mermaid: "",
     run: {
       prerequisites: [],
@@ -174,8 +186,47 @@ test("shape error names the first zod issue path and message", () => {
   );
 });
 
+test("model sections override the digest fallback and honesty stays server-owned", () => {
+  const normalized = normalizeAnalysis(
+    {
+      master: {
+        identity: "Custom identity for the widget.",
+        stack: "",
+        honesty: "The model must not hide a skipped lockfile.",
+      },
+      explain: {
+        summary: "Summary",
+        purpose: "Purpose",
+        audience: "Developers",
+        stack: ["TypeScript"],
+        highlights: ["Uses the README."],
+      },
+      mermaid: "flowchart TD\n  a[Readme] --> b[Source]",
+      run: {
+        prerequisites: [],
+        steps: [{ title: "Install", detail: "npm install" }],
+        keyPaths: [{ path: "package.json", why: "Manifest" }],
+      },
+    },
+    digest({ omissions: ["Skipped lockfiles: package-lock.json."] }),
+  );
+  const parsed = analyzeResultSchema.safeParse(normalized);
+  assert.equal(parsed.success, true);
+  if (!parsed.success) {
+    return;
+  }
+  assert.match(parsed.data.masterPrompt, /Custom identity for the widget/);
+  assert.match(parsed.data.masterPrompt, /## 2\. Stack & dependencies/);
+  assert.match(parsed.data.masterPrompt, /## 5\. Runtime/);
+  assert.match(parsed.data.masterPrompt, /## 8\. Rebuild order/);
+  assert.match(parsed.data.masterPrompt, /Skipped lockfiles: package-lock\.json/);
+  assert.equal(parsed.data.masterPrompt.includes("must not hide"), false);
+  assert.deepEqual(parsed.data.omissions, ["Skipped lockfiles: package-lock.json."]);
+});
+
 test("default model stays gpt-5.6-luna", () => {
   const source = readFileSync(new URL("./openai.ts", import.meta.url), "utf8");
   assert.match(source, /const DEFAULT_MODEL = "gpt-5\.6-luna"/);
+  assert.match(source, /AbortSignal\.timeout\(50_000\)/);
   assert.match(source, /throw new AnalysisError\(analysisShapeErrorMessage\(parsed\.error\), 502\)/);
 });

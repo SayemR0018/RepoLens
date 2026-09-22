@@ -1,8 +1,8 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import { APICallError, generateText, NoObjectGeneratedError, Output } from "ai";
 import type { RepoDigest } from "@/lib/github";
-import { formatDigest } from "@/lib/github";
 import { analysisShapeErrorMessage, normalizeAnalysis } from "@/lib/normalize-analysis";
+import { fitDigest } from "@/lib/summarize";
 import {
   analyzeResultSchema,
   modelAnalysisSchema,
@@ -11,9 +11,16 @@ import {
 
 const DEFAULT_MODEL = "gpt-5.6-luna";
 
-const INSTRUCTIONS = `You are RepoLens. Explain a public GitHub repository to a developer who has not opened the code.
+const INSTRUCTIONS = `You are RepoLens. Your primary job is a master rebuild prompt for ChatGPT-astra. Explain, diagram, and run guide are secondary and must come from the same digest.
 
-Use only the digest. Do not invent files, commands, frameworks, or scripts that the digest does not support. If evidence is thin, say what is known and what is uncertain.
+Use only the digest. Do not invent files, commands, frameworks, packages, or scripts the digest does not support. If evidence is thin, say what is known and what is uncertain.
+The digest is a hybrid sample: ranked manifests, entrypoints, and config, plus an omissions list. It is not a full repository dump. File bodies may already be deterministic summaries.
+
+master.identity, master.stack, master.moduleMap, master.entryPoints, master.runtime, master.interfaces, master.data, and master.rebuildOrder are prompt-ready prose for ChatGPT-astra.
+master.runtime must cover install, build, test, and start, and must say when a command is missing.
+master.rebuildOrder is a phased file-create list using real paths.
+Do not write a honesty section. The server appends real omissions.
+
 explain.summary is plain English, two to four sentences, with no markdown headings.
 explain.stack lists only languages, frameworks, and tools the digest supports.
 mermaid is one flowchart or graph. It must be valid Mermaid, with no code fences, no styling directives, and no click events.
@@ -42,17 +49,18 @@ export async function analyzeDigest(digest: RepoDigest): Promise<AnalyzeResult> 
 
   const modelId = process.env.OPENAI_MODEL?.trim() || DEFAULT_MODEL;
   const provider = createOpenAI({ apiKey });
+  const fitted = fitDigest(digest);
 
   let output: unknown;
   try {
     const result = await generateText({
       model: provider(modelId),
       instructions: INSTRUCTIONS,
-      prompt: `Digest of a public GitHub repository. Write the analysis from this digest only.\n\n${formatDigest(digest)}`,
+      prompt: `Hybrid digest of a public GitHub repository. Write the master rebuild sections first, then the secondary panels, from this digest only.\n\n${fitted.text}`,
       output: Output.object({
         name: "RepositoryAnalysis",
         description:
-          "Plain-English repository analysis with a Mermaid diagram and a run guide.",
+          "Master rebuild prompt for ChatGPT-astra, plus a plain-English explainer, Mermaid diagram, and run guide.",
         schema: modelAnalysisSchema,
       }),
       abortSignal: AbortSignal.timeout(50_000),
@@ -63,7 +71,7 @@ export async function analyzeDigest(digest: RepoDigest): Promise<AnalyzeResult> 
     throw mapModelError(error, modelId);
   }
 
-  const parsed = analyzeResultSchema.safeParse(normalizeAnalysis(output, digest));
+  const parsed = analyzeResultSchema.safeParse(normalizeAnalysis(output, fitted.digest));
   if (!parsed.success) {
     throw new AnalysisError(analysisShapeErrorMessage(parsed.error), 502);
   }

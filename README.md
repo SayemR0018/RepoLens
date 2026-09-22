@@ -1,10 +1,10 @@
 # RepoLens
 
-Paste a public GitHub URL and get three panels:
+Paste a public GitHub URL and get three views:
 
-1. **Explain** — a plain-English reading of the project
-2. **Mermaid** — an architecture diagram rendered in the browser
-3. **How to run** — setup steps and the paths that matter
+1. **Explain** — a plain-English reading of the project, starting with a short summary
+2. **Diagram** — an architecture diagram rendered in the browser
+3. **Run** — setup steps and the paths that matter
 
 The server fetches the repository tree, README, and a handful of key files, then sends a clipped digest to OpenAI structured outputs. The browser receives only that analysis. The raw tree is not returned to the UI.
 
@@ -75,9 +75,20 @@ npm run lint
    - `OPENAI_MODEL` — `gpt-5.6-luna` (or another model your key can call)
    - `GITHUB_TOKEN` — optional, recommended for rate limits
    - `REPOLENS_MOCK` — leave empty for live analysis, or `1` to force the sample
-5. Deploy. Open the deployment URL, paste a public repository, and confirm the three panels.
+5. Deploy. Open the deployment URL, paste a public repository, and confirm Explain, Diagram, and Run.
 
-Do not commit `.env`, `.env.local`, or real API keys. `.env.example` lists the variable names only.
+Do not commit `.env`, `.env.local`, or real API keys. `.env.example` lists the variable names only. The browser never receives `OPENAI_API_KEY` or `GITHUB_TOKEN`.
+
+### Redeploy the existing project
+
+The live app is the Vercel project `repo-lens` at https://repo-lens-nine-iota.vercel.app. Use that project. Do not create a second one, and do not put API keys in the client.
+
+1. Merge this change to `main`. If the Git integration auto-deploys `main`, wait for that deployment. Otherwise open the project and redeploy by hand.
+2. In Vercel, open **repo-lens → Settings → Environment Variables** and confirm Production still has `OPENAI_API_KEY`. `OPENAI_MODEL` and `GITHUB_TOKEN` are optional. Leave `REPOLENS_MOCK` empty for live analysis.
+3. Open **Deployments**, select the latest `main` deployment, and choose **Redeploy**. Redeploy uses the existing project settings.
+4. When the deployment is Ready, open https://repo-lens-nine-iota.vercel.app.
+5. Turn on **Sample response**, analyze `owner/repo`, and confirm the Diagram tab shows labeled boxes rather than an empty frame.
+6. Turn sample mode off and analyze `SayemR0018/dokanBhai__dbmsLAB`. The live diagram should be a `flowchart TD` whose nodes include Browser, React, and Supabase.
 
 ## Smoke checklist
 
@@ -85,4 +96,6 @@ Do not commit `.env`, `.env.local`, or real API keys. `.env.example` lists the v
 - `POST /api/analyze` with `{ "url": "owner/repo", "mock": true }` returns `explain`, `mermaid`, and `run`
 - An unknown repository returns a not-found or private error
 - Live mode without `OPENAI_API_KEY` names the missing key and does not invent panels
-- The page shows all three panels for a sample response, and the diagram renders
+- Sample mode shows a visible diagram: flowchart boxes and labels, not an empty panel
+- Live mermaid for `SayemR0018/dokanBhai__dbmsLAB` is a `flowchart TD` with Browser → React → Supabase
+- While a request is in flight the page shows Fetching tree, Reading files, and Generating — not a blank screen

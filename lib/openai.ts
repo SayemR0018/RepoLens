@@ -9,7 +9,7 @@ import {
   type AnalyzeResult,
 } from "@/lib/schemas";
 
-const DEFAULT_MODEL = "gpt-6";
+const DEFAULT_MODEL = "gpt-5.6-luna";
 
 const INSTRUCTIONS = `You are RepoLens. Explain a public GitHub repository to a developer who has not opened the code.
 

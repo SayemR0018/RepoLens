@@ -20,7 +20,7 @@ npm install
 cp .env.example .env.local
 ```
 
-Set `OPENAI_API_KEY` in `.env.local`. `OPENAI_MODEL` defaults to `gpt-6`. `GITHUB_TOKEN` is optional; public repositories work without it.
+Set `OPENAI_API_KEY` in `.env.local`. `OPENAI_MODEL` defaults to `gpt-5.6-luna`. `GITHUB_TOKEN` is optional; public repositories work without it.
 
 ```bash
 npm run dev
@@ -72,7 +72,7 @@ npm run lint
 3. Framework preset: **Next.js**. Build command `npm run build`, output handled by Next.js. No extra install flags.
 4. Add environment variables:
    - `OPENAI_API_KEY` — your key
-   - `OPENAI_MODEL` — `gpt-6` (or another model your key can call)
+   - `OPENAI_MODEL` — `gpt-5.6-luna` (or another model your key can call)
    - `GITHUB_TOKEN` — optional, recommended for rate limits
    - `REPOLENS_MOCK` — leave empty for live analysis, or `1` to force the sample
 5. Deploy. Open the deployment URL, paste a public repository, and confirm the three panels.

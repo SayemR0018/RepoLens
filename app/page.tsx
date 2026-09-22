@@ -12,15 +12,11 @@ export default function HomePage() {
         <p>Public GitHub repositories</p>
       </header>
       <main>
-        <section className="intro">
-          <h1>Explain a repository in three panels.</h1>
-          <p>
-            Paste a public GitHub URL. RepoLens reads the tree on the server and returns a
-            plain-English explainer, an architecture diagram, and the steps to run it.
-          </p>
-        </section>
         <Analyzer />
       </main>
+      <footer className="trust">
+        <p>Public repositories only. API keys stay in the Vercel project environment and never reach the browser.</p>
+      </footer>
     </div>
   );
 }

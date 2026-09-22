@@ -1,23 +1,18 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Explain } from "@/components/Explain";
-import { RunGuide } from "@/components/RunGuide";
+import { Hero } from "@/components/Hero";
+import { Progress } from "@/components/Progress";
+import { RepoHeader } from "@/components/RepoHeader";
+import { ResultTabs } from "@/components/ResultTabs";
 import { analyzeResultSchema, type AnalyzeResult } from "@/lib/schemas";
-
-const Diagram = dynamic(
-  () => import("@/components/Diagram").then((module) => module.Diagram),
-  {
-    ssr: false,
-    loading: () => <DiagramFallback />,
-  },
-);
 
 export function Analyzer() {
   const [url, setUrl] = useState("");
   const [mock, setMock] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [stage, setStage] = useState(0);
+  const [requestId, setRequestId] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AnalyzeResult | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -28,12 +23,29 @@ export function Analyzer() {
     };
   }, []);
 
-  function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const submitted = url.trim();
+  useEffect(() => {
+    if (status !== "loading") {
+      return;
+    }
+    const first = window.setTimeout(() => setStage(1), 800);
+    const second = window.setTimeout(() => setStage(2), 1700);
+    return () => {
+      window.clearTimeout(first);
+      window.clearTimeout(second);
+    };
+  }, [status, requestId]);
+
+  function analyze(nextUrl: string) {
+    const submitted = nextUrl.trim();
+    if (!submitted) {
+      return;
+    }
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
+    setUrl(submitted);
+    setRequestId((current) => current + 1);
+    setStage(0);
     setStatus("loading");
     setError(null);
     setResult(null);
@@ -55,104 +67,56 @@ export function Analyzer() {
       });
   }
 
+  function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    analyze(url);
+  }
+
   return (
     <div className="analyzer">
-      <form className="query" onSubmit={onSubmit}>
-        <label htmlFor="repo-url">GitHub repository</label>
-        <div className="query-row">
-          <input
-            id="repo-url"
-            name="url"
-            value={url}
-            onChange={(event) => setUrl(event.target.value)}
-            placeholder="github.com/owner/repo"
-            autoCapitalize="off"
-            autoCorrect="off"
-            spellCheck={false}
-            required
-          />
-          <button type="submit" disabled={status === "loading"}>
-            {status === "loading" ? "Analyzing…" : "Analyze"}
-          </button>
-        </div>
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={mock}
-            onChange={(event) => setMock(event.target.checked)}
-          />
-          Sample response
-        </label>
-        <p className="hint">
-          Sample mode skips GitHub and OpenAI and returns a deterministic analysis. Live mode
-          uses OPENAI_API_KEY. Set REPOLENS_MOCK=1 to force the sample on the server.
-        </p>
-      </form>
+      <Hero
+        url={url}
+        mock={mock}
+        loading={status === "loading"}
+        onUrlChange={setUrl}
+        onMockChange={setMock}
+        onSubmit={onSubmit}
+        onExample={analyze}
+      />
 
-      {status === "loading" ? (
-        <p className="status" role="status">
-          Reading the repository and preparing the three panels…
+      {status === "idle" ? (
+        <p className="empty-state">
+          Nothing analyzed yet. The explainer, diagram, and run guide show up here.
         </p>
       ) : null}
-      {error ? (
-        <p className="banner" role="alert">
-          {error}
-        </p>
+
+      {status === "loading" ? <Progress stage={stage} /> : null}
+
+      {status === "error" && error ? (
+        <div className="banner" role="alert">
+          <p className="banner-title">Analysis failed</p>
+          <p>{error}</p>
+        </div>
       ) : null}
 
       {result ? (
         <div className="results">
-          <header className="result-head">
-            <div>
-              <p className="eyebrow">
-                {result.source === "mock" ? "Sample" : "Live analysis"}
-              </p>
-              <p className="repo-title">
-                <a
-                  href={`https://github.com/${encodeURIComponent(result.owner)}/${encodeURIComponent(result.repo)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {result.owner}/{result.repo}
-                </a>
-              </p>
-              {result.description ? <p>{result.description}</p> : null}
-            </div>
-            <p className="branch">
-              Branch <code>{result.defaultBranch}</code>
-            </p>
-          </header>
+          <RepoHeader
+            owner={result.owner}
+            repo={result.repo}
+            branch={result.defaultBranch}
+            source={result.source}
+          />
+          {result.description ? <p className="repo-description">{result.description}</p> : null}
           <p className="digest-note">
             {result.source === "mock"
               ? "This sample did not fetch the repository. The raw tree is never sent to the browser."
               : "Built from a server-side digest of the tree, README, and key files. The raw tree stays on the server."}
           </p>
-          <div className="panels">
-            <Explain explain={result.explain} />
-            <Diagram chart={result.mermaid} />
-            <RunGuide
-              run={result.run}
-              owner={result.owner}
-              repo={result.repo}
-              branch={result.defaultBranch}
-              source={result.source}
-            />
-          </div>
+          <ResultTabs result={result} />
         </div>
       ) : null}
     </div>
-  );
-}
-
-function DiagramFallback() {
-  return (
-    <section className="panel panel-diagram" aria-busy="true">
-      <div className="panel-kicker">
-        <span>02</span>
-        <h2>Mermaid</h2>
-      </div>
-      <p className="muted">Loading diagram renderer…</p>
-    </section>
   );
 }
 

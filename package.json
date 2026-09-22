@@ -10,7 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test lib/normalize-analysis.test.ts"
+    "test": "tsx --test lib/normalize-analysis.test.ts lib/diagram-layout.test.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.72",

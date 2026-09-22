@@ -2,7 +2,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { APICallError, generateText, NoObjectGeneratedError, Output } from "ai";
 import type { RepoDigest } from "@/lib/github";
 import { formatDigest } from "@/lib/github";
-import { readMermaidSource } from "@/lib/mermaid-text";
+import { analysisShapeErrorMessage, normalizeAnalysis } from "@/lib/normalize-analysis";
 import {
   analyzeResultSchema,
   modelAnalysisSchema,
@@ -63,35 +63,11 @@ export async function analyzeDigest(digest: RepoDigest): Promise<AnalyzeResult> 
     throw mapModelError(error, modelId);
   }
 
-  const mermaid = readMermaidSource(
-    output && typeof output === "object" && "mermaid" in output && typeof output.mermaid === "string"
-      ? output.mermaid
-      : "",
-  );
-  const candidate = {
-    ...(output && typeof output === "object" ? output : {}),
-    mermaid: mermaid ?? "",
-    owner: digest.owner,
-    repo: digest.repo,
-    defaultBranch: digest.defaultBranch,
-    description: digest.description || readDescription(output),
-    source: "live" as const,
-  };
-  const parsed = analyzeResultSchema.safeParse(candidate);
+  const parsed = analyzeResultSchema.safeParse(normalizeAnalysis(output, digest));
   if (!parsed.success) {
-    throw new AnalysisError(
-      "The model returned an analysis that did not match the expected shape.",
-      502,
-    );
+    throw new AnalysisError(analysisShapeErrorMessage(parsed.error), 502);
   }
   return parsed.data;
-}
-
-function readDescription(output: unknown): string {
-  if (!output || typeof output !== "object" || !("description" in output)) {
-    return "";
-  }
-  return typeof output.description === "string" ? output.description : "";
 }
 
 function mapModelError(error: unknown, modelId: string): AnalysisError {

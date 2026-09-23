@@ -5,15 +5,9 @@ import {
   readModelSections,
   sectionsFromDigest,
 } from "./masterPrompt";
-import { flowchartFromRootFolders, readMermaidSource } from "./mermaid-text";
 
-const LIMITS = {
-  stack: 12,
-  highlights: 8,
-  prerequisites: 8,
-  steps: 10,
-  keyPaths: 12,
-} as const;
+const STACK_LIMIT = 12;
+const SUMMARY_SENTENCES = 4;
 
 export type AnalysisShapeError = {
   issues: ReadonlyArray<{
@@ -39,7 +33,6 @@ export function analysisShapeErrorMessage(error: AnalysisShapeError): string {
 export function normalizeAnalysis(output: unknown, digest: RepoDigest) {
   const record = asRecord(output);
   const explain = asRecord(record?.explain);
-  const run = asRecord(record?.run);
   const line = groundedLine(digest);
 
   const description = digest.description.trim() || trimmed(record?.description);
@@ -52,20 +45,8 @@ export function normalizeAnalysis(output: unknown, digest: RepoDigest) {
     .map((item) => item.trim())
     .filter((item) => item.length > 0)
     .slice(0, 40);
-  const summary = trimmed(explain?.summary) || line;
-  const purpose = trimmed(explain?.purpose) || line;
-  const audience = trimmed(explain?.audience) || line;
-  const stack = strings(explain?.stack, LIMITS.stack);
-  const highlights = strings(explain?.highlights, LIMITS.highlights);
-  const prerequisites = strings(run?.prerequisites, LIMITS.prerequisites);
-  const steps = normalizeSteps(run?.steps, digest, line);
-  const keyPaths = normalizeKeyPaths(run?.keyPaths, digest, line);
-  const mermaid =
-    readMermaidSource(trimmed(record?.mermaid)) ??
-    flowchartFromRootFolders(
-      `${digest.owner.trim()}/${digest.repo.trim()}`,
-      digest.topLevel.filter((entry) => entry.kind === "dir").map((entry) => entry.name),
-    );
+  const summary = shortSummary(explain?.summary, line);
+  const stack = strings(explain?.stack, STACK_LIMIT);
 
   return {
     owner: digest.owner.trim(),
@@ -77,16 +58,7 @@ export function normalizeAnalysis(output: unknown, digest: RepoDigest) {
     omissions,
     explain: {
       summary,
-      purpose,
-      audience,
       stack: stack.length > 0 ? stack : [line],
-      highlights: highlights.length > 0 ? highlights : [line],
-    },
-    mermaid,
-    run: {
-      prerequisites,
-      steps,
-      keyPaths,
     },
   };
 }
@@ -97,100 +69,25 @@ function groundedLine(digest: RepoDigest): string {
   return description ? `${subject}: ${description}` : `${subject}: See README`;
 }
 
-function normalizeSteps(
-  value: unknown,
-  digest: RepoDigest,
-  line: string,
-): Array<{ title: string; detail: string }> {
-  const steps: Array<{ title: string; detail: string }> = [];
-  if (Array.isArray(value)) {
-    for (const entry of value) {
-      const record = asRecord(entry);
-      if (!record) {
-        continue;
-      }
-      const title = trimmed(record.title);
-      const detail = trimmed(record.detail);
-      if (!title && !detail) {
-        continue;
-      }
-      steps.push({
-        title: title || `Review ${digest.owner.trim()}/${digest.repo.trim()}`,
-        detail: detail || line,
-      });
-      if (steps.length >= LIMITS.steps) {
-        break;
-      }
-    }
-  }
-  if (steps.length > 0) {
-    return steps;
-  }
-  const file = digest.keyFiles.find((item) => item.path.trim().length > 0);
-  return [
-    {
-      title: file
-        ? `Open ${file.path.trim()}`
-        : `Review ${digest.owner.trim()}/${digest.repo.trim()}`,
-      detail: line,
-    },
-  ];
+function shortSummary(value: unknown, fallback: string): string {
+  const text = trimmed(value).replace(/\s+/g, " ");
+  const clipped = clipSentences(text, SUMMARY_SENTENCES);
+  return clipped || fallback;
 }
 
-function normalizeKeyPaths(
-  value: unknown,
-  digest: RepoDigest,
-  line: string,
-): Array<{ path: string; why: string }> {
-  const paths: Array<{ path: string; why: string }> = [];
-  if (Array.isArray(value)) {
-    for (const entry of value) {
-      const record = asRecord(entry);
-      if (!record) {
-        continue;
-      }
-      const path = trimmed(record.path);
-      if (!path) {
-        continue;
-      }
-      paths.push({
-        path,
-        why: trimmed(record.why) || line,
-      });
-      if (paths.length >= LIMITS.keyPaths) {
-        break;
-      }
-    }
+function clipSentences(text: string, max: number): string {
+  if (!text) {
+    return "";
   }
-  if (paths.length > 0) {
-    return paths;
+  const parts = text.match(/[^.!?]+[.!?]+(?:["')\]]+)?|[^.!?]+$/g);
+  if (!parts) {
+    return text;
   }
-
-  const fromKeyFiles = digest.keyFiles
-    .map((file) => file.path.trim())
-    .filter((path) => path.length > 0)
-    .slice(0, LIMITS.keyPaths)
-    .map((path) => ({
-      path,
-      why: `Key file from the ${digest.owner.trim()}/${digest.repo.trim()} digest.`,
-    }));
-  if (fromKeyFiles.length > 0) {
-    return fromKeyFiles;
-  }
-
-  const fromNotable = digest.notablePaths
-    .map((path) => path.trim())
-    .filter((path) => path.length > 0)
-    .slice(0, LIMITS.keyPaths)
-    .map((path) => ({
-      path,
-      why: `Notable path from the ${digest.owner.trim()}/${digest.repo.trim()} digest.`,
-    }));
-  if (fromNotable.length > 0) {
-    return fromNotable;
-  }
-
-  return [{ path: "README", why: line }];
+  return parts
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0)
+    .slice(0, max)
+    .join(" ");
 }
 
 function strings(value: unknown, max: number): string[] {

@@ -66,38 +66,8 @@ function smallResult(ref: RepoRef): AnalyzeResult {
     masterPrompt: assembleMasterPrompt(ref.owner, ref.repo, sections),
     omissions: [],
     explain: {
-      summary: `Sample explainer for ${ref.owner}/${ref.repo}. RepoLens skipped the network and returned this small fixture so the master prompt can be reviewed without an API key.`,
-      purpose: "Show a nine-section rebuild prompt for a single-package library.",
-      audience: "Developers trying RepoLens locally, in CI, or before adding API keys.",
+      summary: `Sample explainer for ${ref.owner}/${ref.repo}. This fixture stands in for a single-package TypeScript library on the main branch. The network was skipped so the master prompt can be reviewed without an API key. No structural omissions were recorded.`,
       stack: ["TypeScript", "Node.js"],
-      highlights: [
-        "The primary artefact is the master prompt, not a full-repo dump.",
-        "This small fixture records no structural omissions.",
-        "Mock mode is selected with REPOLENS_MOCK=1 or with mock set to true.",
-      ],
-    },
-    mermaid: `flowchart TD
-  paste[Paste GitHub URL] --> digest[Hybrid digest]
-  digest --> prompt[Master prompt]
-  digest --> explain[Explain]
-  digest --> diagram[Diagram]
-  digest --> run[Run]`,
-    run: {
-      prerequisites: ["Node.js 22 or newer"],
-      steps: [
-        { title: "Install dependencies", detail: "npm install" },
-        { title: "Build", detail: "npm run build" },
-        { title: "Test", detail: "npm test" },
-        {
-          title: "Start the app",
-          detail: "No start script in this sample. Use npm run dev for RepoLens itself.",
-        },
-      ],
-      keyPaths: [
-        { path: "package.json", why: "Manifest for the sample library." },
-        { path: "src/index.ts", why: "Public entrypoint." },
-        { path: "tsconfig.json", why: "TypeScript config." },
-      ],
     },
   };
 }
@@ -147,40 +117,8 @@ function mediumResult(ref: RepoRef): AnalyzeResult {
     masterPrompt: assembleMasterPrompt(ref.owner, ref.repo, sections),
     omissions,
     explain: {
-      summary: `Sample explainer for ${ref.owner}/${ref.repo}. This medium fixture stands in for a multi-file app and includes omissions so the honesty block can be reviewed without API keys.`,
-      purpose: "Show a master rebuild prompt plus explainer, diagram, and run guide for a mid-size repository.",
-      audience: "Developers checking sample mode on a well-known public repository URL.",
+      summary: `Sample explainer for ${ref.owner}/${ref.repo}. This medium fixture stands in for a multi-file TypeScript web app. Omissions are included so the honesty block can be reviewed without an API key. Lockfiles, images, and most source files stay out of the digest.`,
       stack: ["TypeScript", "Next.js", "React"],
-      highlights: [
-        "Only a capped digest is represented. Lockfiles, images, and most source files are omissions.",
-        "The master prompt states the rebuild order and what was not read.",
-        "Live mode still refuses private repositories.",
-      ],
-    },
-    mermaid: `flowchart TD
-  url[Public GitHub URL] --> tree[Ranked tree]
-  tree --> manifest[package.json]
-  tree --> entry[app/page.tsx]
-  manifest --> prompt[Master prompt]
-  entry --> prompt
-  prompt --> explain[Explain]
-  prompt --> diagram[Diagram]
-  prompt --> run[Run]`,
-    run: {
-      prerequisites: ["Node.js 22 or newer", "DATABASE_URL when leaving the sample"],
-      steps: [
-        { title: "Install dependencies", detail: "npm install" },
-        { title: "Configure environment", detail: "Copy .env.example and set DATABASE_URL." },
-        { title: "Build", detail: "npm run build" },
-        { title: "Test", detail: "npm test" },
-        { title: "Start", detail: "npm run start" },
-      ],
-      keyPaths: [
-        { path: "package.json", why: "Names next, react, and the npm scripts." },
-        { path: "app/page.tsx", why: "UI entrypoint in the fixture." },
-        { path: ".env.example", why: "Declares DATABASE_URL without a secret value." },
-        { path: "next.config.ts", why: "Next.js config listed in the sample." },
-      ],
     },
   };
 }
@@ -230,36 +168,8 @@ function monoResult(ref: RepoRef): AnalyzeResult {
     masterPrompt: assembleMasterPrompt(ref.owner, ref.repo, sections),
     omissions,
     explain: {
-      summary: `Sample explainer for ${ref.owner}/${ref.repo}. This monorepo fixture shows a workspace digest with packages left unfetched on purpose.`,
-      purpose: "Show how a master prompt describes a workspace without dumping every package.",
-      audience: "Developers checking the sample against a workspace-shaped repository name.",
+      summary: `Sample explainer for ${ref.owner}/${ref.repo}. This fixture stands in for a pnpm workspace with a web app and a UI package. Root and web manifests are represented, while packages/ui stays unfetched. Lockfiles and generated cache paths are recorded as omissions.`,
       stack: ["TypeScript", "pnpm", "Next.js"],
-      highlights: [
-        "Root and web manifests are in the digest. packages/ui is an omission.",
-        "Lockfiles and the .next cache are omitted.",
-        "The honesty block is part of the master prompt.",
-      ],
-    },
-    mermaid: `flowchart TD
-  root[pnpm-workspace.yaml] --> web[apps/web]
-  root --> ui[packages/ui]
-  web --> prompt[Master prompt]
-  ui --> omitted[Not fetched]
-  omitted --> honesty[Honesty]`,
-    run: {
-      prerequisites: ["Node.js 22 or newer", "pnpm"],
-      steps: [
-        { title: "Install the workspace", detail: "pnpm install" },
-        { title: "Build", detail: "pnpm build" },
-        { title: "Test", detail: "pnpm test" },
-        { title: "Start the web app", detail: "pnpm --filter web dev" },
-      ],
-      keyPaths: [
-        { path: "pnpm-workspace.yaml", why: "Declares the workspace packages." },
-        { path: "package.json", why: "Root scripts for turbo." },
-        { path: "apps/web/package.json", why: "Web app manifest." },
-        { path: "apps/web/app/page.tsx", why: "Fetched UI entry." },
-      ],
     },
   };
 }

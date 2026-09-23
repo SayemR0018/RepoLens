@@ -86,7 +86,7 @@ export function Analyzer() {
 
       {status === "idle" ? (
         <p className="empty-state">
-          Nothing analyzed yet. The master rebuild prompt shows up here, with an explainer, diagram, and run guide.
+          Nothing analyzed yet. The master rebuild prompt shows up here, with a short explainer.
         </p>
       ) : null}
 

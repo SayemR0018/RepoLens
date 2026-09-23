@@ -1,25 +1,13 @@
 "use client";
 
 import { useEffect, useId, useState, type KeyboardEvent } from "react";
-import dynamic from "next/dynamic";
 import { Explain } from "@/components/Explain";
 import { MasterPrompt } from "@/components/MasterPrompt";
-import { RunGuide } from "@/components/RunGuide";
 import type { AnalyzeResult } from "@/lib/schemas";
-
-const Diagram = dynamic(
-  () => import("@/components/Diagram").then((module) => module.Diagram),
-  {
-    ssr: false,
-    loading: () => <DiagramFallback />,
-  },
-);
 
 const TABS = [
   { id: "prompt", label: "Master Prompt" },
   { id: "explain", label: "Explain" },
-  { id: "diagram", label: "Diagram" },
-  { id: "run", label: "Run" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -35,8 +23,6 @@ export function ResultTabs({
   const [open, setOpen] = useState<Record<TabId, boolean>>({
     prompt: true,
     explain: true,
-    diagram: true,
-    run: true,
   });
 
   function selectTab(id: TabId) {
@@ -74,26 +60,7 @@ export function ResultTabs({
     if (id === "prompt") {
       return <MasterPrompt prompt={result.masterPrompt} omissions={result.omissions} />;
     }
-    if (id === "explain") {
-      return <Explain explain={result.explain} />;
-    }
-    if (id === "diagram") {
-      return (
-        <Diagram
-          key={`mermaid-${result.mermaid.slice(0, 32)}-${active}`}
-          chart={result.mermaid}
-        />
-      );
-    }
-    return (
-      <RunGuide
-        run={result.run}
-        owner={result.owner}
-        repo={result.repo}
-        branch={result.defaultBranch}
-        source={result.source}
-      />
-    );
+    return <Explain explain={result.explain} />;
   }
 
   if (!wide) {
@@ -195,13 +162,4 @@ function useWideLayout(): boolean {
   }, []);
 
   return wide;
-}
-
-function DiagramFallback() {
-  return (
-    <div className="panel-body panel-diagram" aria-busy="true">
-      <p className="muted">Loading diagram renderer…</p>
-      <div className="diagram-frame" />
-    </div>
-  );
 }

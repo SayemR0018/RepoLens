@@ -31,7 +31,7 @@ export function Hero({
     <section className="hero">
       <h1>Rebuild any public repository.</h1>
       <p className="hero-lead">
-        A master rebuild prompt, plus a plain-English reading, a diagram, and the steps to run it.
+        A master rebuild prompt, plus a short plain-English reading of the stack.
       </p>
       <form className="hero-form" onSubmit={onSubmit}>
         <label htmlFor="repo-url">Repository</label>

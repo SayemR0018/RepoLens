@@ -95,13 +95,15 @@ test("mock fixtures return a full master prompt and omissions on medium and mono
   assert.match(medium.masterPrompt, /package-lock\.json/);
   assert.match(mono.masterPrompt, /pnpm-lock\.yaml/);
   for (const result of [small, medium, mono]) {
+    const sentences = result.explain.summary.match(/[^.!?]+[.!?]+/g) ?? [];
+    assert.ok(sentences.length >= 2 && sentences.length <= 4, result.explain.summary);
+    assert.deepEqual(Object.keys(result.explain).sort(), ["stack", "summary"]);
+    assert.equal("mermaid" in result, false);
+    assert.equal("run" in result, false);
     const visible = [
       result.masterPrompt,
       result.description,
       result.explain.summary,
-      result.explain.purpose,
-      result.explain.audience,
-      ...result.explain.highlights,
       ...result.explain.stack,
     ].join("\n");
     assert.equal(/astra|chatgpt|claude|gemini/i.test(visible), false);

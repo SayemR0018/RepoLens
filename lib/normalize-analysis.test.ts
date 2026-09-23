@@ -2,11 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import type { RepoDigest } from "./github";
-import { readMermaidSource } from "./mermaid-text";
 import { analysisShapeErrorMessage, normalizeAnalysis } from "./normalize-analysis";
 import { analyzeResultSchema } from "./schemas";
-
-const UNSAFE_SOURCE = /<\s*script\b|javascript:|on\w+\s*=/i;
 
 function digest(overrides: Partial<RepoDigest> = {}): RepoDigest {
   return {
@@ -23,7 +20,6 @@ function digest(overrides: Partial<RepoDigest> = {}): RepoDigest {
     topLevel: [
       { name: "src", kind: "dir" },
       { name: "app", kind: "dir" },
-      { name: "<script>alert(1)</script>", kind: "dir" },
       { name: "README.md", kind: "file" },
     ],
     extensions: [{ ext: ".ts", count: 2 }],
@@ -41,93 +37,54 @@ function digest(overrides: Partial<RepoDigest> = {}): RepoDigest {
   };
 }
 
-test("normalizes empty mermaid and empty stack into a parseable analysis", () => {
-  const bad = {
-    description: "  from the model  ",
-    explain: {
-      summary: "  Explains the widget library in plain English.  ",
-      purpose: "  Help a developer start reading. ",
-      audience: " Developers new to the repo. ",
-      stack: ["", "   "],
-      highlights: [" ", ""],
-    },
-    mermaid: "",
-    run: {
-      prerequisites: [" Node.js 22 ", ""],
-      steps: [{ title: "   ", detail: "  " }],
-      keyPaths: [{ path: "  ", why: "  " }],
-    },
-  };
-
-  const normalized = normalizeAnalysis(bad, digest());
-  const parsed = analyzeResultSchema.safeParse(normalized);
-
-  assert.equal(parsed.success, true);
-  if (!parsed.success) {
-    return;
-  }
-  assert.equal(parsed.data.explain.summary, "Explains the widget library in plain English.");
-  assert.deepEqual(parsed.data.explain.stack, ["acme/widget: A small widget library."]);
-  assert.deepEqual(parsed.data.explain.highlights, ["acme/widget: A small widget library."]);
-  assert.equal(parsed.data.run.prerequisites.length, 1);
-  assert.equal(parsed.data.run.steps[0]?.title, "Open package.json");
-  assert.equal(parsed.data.run.keyPaths[0]?.path, "package.json");
-  assert.match(parsed.data.mermaid, /^flowchart TD/);
-  assert.match(parsed.data.mermaid, /src\//);
-  assert.match(parsed.data.mermaid, /app\//);
-  assert.match(parsed.data.masterPrompt, /## 1\. Identity/);
-  assert.match(parsed.data.masterPrompt, /## 9\. Honesty/);
-  assert.match(parsed.data.masterPrompt, /expert software engineer rebuilding this repository/);
-  assert.equal(/astra|chatgpt/i.test(parsed.data.masterPrompt), false);
-  assert.deepEqual(parsed.data.omissions, []);
-  assert.equal(UNSAFE_SOURCE.test(parsed.data.mermaid), false);
-  assert.equal(readMermaidSource(parsed.data.mermaid), parsed.data.mermaid);
-});
-
-test("keeps a fenced diagram and fills a blank stack from the digest", () => {
+test("clips a long summary and fills an empty stack from the digest", () => {
   const normalized = normalizeAnalysis(
     {
+      description: "  from the model  ",
       explain: {
-        summary: "Summary",
-        purpose: "Purpose",
-        audience: "Developers",
-        stack: [],
-        highlights: ["Uses the README."],
+        summary:
+          "First sentence about the widget. Second sentence about the library. Third sentence about the digest. Fourth sentence about the branch. Fifth sentence should be dropped. Sixth sentence should be dropped.",
+        purpose: "Help a developer start reading.",
+        audience: "Developers new to the repo.",
+        stack: ["", "   "],
+        highlights: ["A long highlight that should not surface."],
       },
-      mermaid: "```mermaid\nflowchart LR\n  a[Readme] --> b[Source]\n```",
+      mermaid: "flowchart TD\n  a --> b",
       run: {
-        prerequisites: [],
+        prerequisites: ["Node.js 22"],
         steps: [{ title: "Install", detail: "npm install" }],
-        keyPaths: [{ path: "src/index.ts", why: "Entry" }],
+        keyPaths: [{ path: "package.json", why: "Manifest" }],
       },
     },
     digest(),
   );
   const parsed = analyzeResultSchema.safeParse(normalized);
+
   assert.equal(parsed.success, true);
   if (!parsed.success) {
     return;
   }
-  assert.equal(parsed.data.mermaid, "flowchart LR\n  a[Readme] --> b[Source]");
+  assert.equal(
+    parsed.data.explain.summary,
+    "First sentence about the widget. Second sentence about the library. Third sentence about the digest. Fourth sentence about the branch.",
+  );
   assert.deepEqual(parsed.data.explain.stack, ["acme/widget: A small widget library."]);
-  assert.equal(parsed.data.run.keyPaths[0]?.path, "src/index.ts");
+  assert.deepEqual(Object.keys(parsed.data.explain).sort(), ["stack", "summary"]);
+  assert.equal("mermaid" in parsed.data, false);
+  assert.equal("run" in parsed.data, false);
+  assert.match(parsed.data.masterPrompt, /## 1\. Identity/);
+  assert.match(parsed.data.masterPrompt, /## 9\. Honesty/);
+  assert.match(parsed.data.masterPrompt, /expert software engineer rebuilding this repository/);
+  assert.equal(/astra|chatgpt/i.test(parsed.data.masterPrompt), false);
+  assert.deepEqual(parsed.data.omissions, []);
 });
 
-test("replaces script and javascript mermaid and still parses", () => {
+test("fills a blank summary and stack from the digest", () => {
   const normalized = normalizeAnalysis(
     {
       explain: {
         summary: " \n ",
-        purpose: "\t",
-        audience: "",
-        stack: ["TypeScript"],
-        highlights: [],
-      },
-      mermaid: 'flowchart TD\n  a["<script>alert(1)</script>"]\n  b["javascript:alert(1)"]',
-      run: {
-        prerequisites: [],
-        steps: [{ title: " Install ", detail: " \n " }],
-        keyPaths: [],
+        stack: [],
       },
     },
     digest({ description: "  " }),
@@ -138,14 +95,29 @@ test("replaces script and javascript mermaid and still parses", () => {
     return;
   }
   assert.equal(parsed.data.explain.summary, "acme/widget: See README");
-  assert.equal(parsed.data.explain.purpose, "acme/widget: See README");
-  assert.equal(parsed.data.explain.audience, "acme/widget: See README");
-  assert.deepEqual(parsed.data.explain.highlights, ["acme/widget: See README"]);
-  assert.equal(parsed.data.run.steps[0]?.title, "Install");
-  assert.equal(parsed.data.run.steps[0]?.detail, "acme/widget: See README");
-  assert.equal(UNSAFE_SOURCE.test(parsed.data.mermaid), false);
-  assert.doesNotMatch(parsed.data.mermaid, /script|javascript:|onclick/i);
-  assert.match(parsed.data.mermaid, /src\//);
+  assert.deepEqual(parsed.data.explain.stack, ["acme/widget: See README"]);
+});
+
+test("keeps a short stack and ignores extra report fields", () => {
+  const normalized = normalizeAnalysis(
+    {
+      explain: {
+        summary: "Summary of the widget. It is a small library.",
+        purpose: "Purpose",
+        audience: "Developers",
+        stack: ["TypeScript", "Node.js"],
+        highlights: ["Uses the README."],
+      },
+    },
+    digest(),
+  );
+  const parsed = analyzeResultSchema.safeParse(normalized);
+  assert.equal(parsed.success, true);
+  if (!parsed.success) {
+    return;
+  }
+  assert.equal(parsed.data.explain.summary, "Summary of the widget. It is a small library.");
+  assert.deepEqual(parsed.data.explain.stack, ["TypeScript", "Node.js"]);
 });
 
 test("shape error names the first zod issue path and message", () => {
@@ -156,20 +128,11 @@ test("shape error names the first zod issue path and message", () => {
     description: "",
     source: "live",
     explain: {
-      summary: "Summary",
-      purpose: "Purpose",
-      audience: "Developers",
+      summary: "Summary of the widget.",
       stack: ["TypeScript"],
-      highlights: ["A highlight"],
     },
-    masterPrompt: "Rebuild the widget from the digest.",
+    masterPrompt: "   ",
     omissions: [],
-    mermaid: "",
-    run: {
-      prerequisites: [],
-      steps: [{ title: "Install", detail: "npm install" }],
-      keyPaths: [{ path: "package.json", why: "Manifest" }],
-    },
   });
   assert.equal(parsed.success, false);
   if (parsed.success) {
@@ -183,7 +146,7 @@ test("shape error names the first zod issue path and message", () => {
   );
   assert.match(
     analysisShapeErrorMessage(parsed.error),
-    /^The model returned an analysis that did not match the expected shape\. mermaid: /,
+    /^The model returned an analysis that did not match the expected shape\. masterPrompt: /,
   );
 });
 
@@ -196,17 +159,8 @@ test("model sections override the digest fallback and honesty stays server-owned
         honesty: "The model must not hide a skipped lockfile.",
       },
       explain: {
-        summary: "Summary",
-        purpose: "Purpose",
-        audience: "Developers",
+        summary: "Summary of the widget.",
         stack: ["TypeScript"],
-        highlights: ["Uses the README."],
-      },
-      mermaid: "flowchart TD\n  a[Readme] --> b[Source]",
-      run: {
-        prerequisites: [],
-        steps: [{ title: "Install", detail: "npm install" }],
-        keyPaths: [{ path: "package.json", why: "Manifest" }],
       },
     },
     digest({ omissions: ["Skipped lockfiles: package-lock.json."] }),
@@ -225,9 +179,13 @@ test("model sections override the digest fallback and honesty stays server-owned
   assert.deepEqual(parsed.data.omissions, ["Skipped lockfiles: package-lock.json."]);
 });
 
-test("default model stays gpt-5.6-luna", () => {
-  const source = readFileSync(new URL("./openai.ts", import.meta.url), "utf8");
-  assert.match(source, /const DEFAULT_MODEL = "gpt-5\.6-luna"/);
-  assert.match(source, /AbortSignal\.timeout\(50_000\)/);
-  assert.match(source, /throw new AnalysisError\(analysisShapeErrorMessage\(parsed\.error\), 502\)/);
+test("default model stays gpt-5.6-luna and the prompt does not request removed panels", () => {
+  const openai = readFileSync(new URL("./openai.ts", import.meta.url), "utf8");
+  const schemas = readFileSync(new URL("./schemas.ts", import.meta.url), "utf8");
+  assert.match(openai, /const DEFAULT_MODEL = "gpt-5\.6-luna"/);
+  assert.match(openai, /AbortSignal\.timeout\(50_000\)/);
+  assert.match(openai, /throw new AnalysisError\(analysisShapeErrorMessage\(parsed\.error\), 502\)/);
+  for (const source of [openai, schemas]) {
+    assert.equal(/mermaid|howToRun|RunGuide|\bDiagram\b/i.test(source), false);
+  }
 });

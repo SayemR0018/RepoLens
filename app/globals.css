@@ -14,9 +14,6 @@
   --danger: #8d2b2b;
   --danger-bg: #f8e8e4;
   --shadow: 0 16px 40px rgb(28 25 21 / 6%);
-  --diagram-canvas: #fffdf8;
-  --diagram-ink: #1c1915;
-  --diagram-stroke: #0a4f4a;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -34,9 +31,6 @@
     --danger: #ffb4a8;
     --danger-bg: #3a2420;
     --shadow: 0 16px 40px rgb(0 0 0 / 28%);
-    --diagram-canvas: #161513;
-    --diagram-ink: #f7f2ea;
-    --diagram-stroke: #b7ebe6;
   }
 }
 
@@ -54,9 +48,6 @@
   --danger: #ffb4a8;
   --danger-bg: #3a2420;
   --shadow: 0 16px 40px rgb(0 0 0 / 28%);
-  --diagram-canvas: #161513;
-  --diagram-ink: #f7f2ea;
-  --diagram-stroke: #b7ebe6;
 }
 
 @theme inline {
@@ -197,7 +188,6 @@ a {
 .hero h1,
 .repo-title,
 .panel h3,
-.step-title,
 .accordion-trigger {
   font-weight: 600;
   letter-spacing: -0.03em;
@@ -248,8 +238,6 @@ a {
 
 .hero-row button,
 .copy-button,
-.source-toggle,
-.diagram-zoom button,
 .examples button,
 .accordion-trigger,
 .theme-toggle,
@@ -398,7 +386,7 @@ a {
 }
 
 .skeleton-tabs {
-  grid-template-columns: repeat(3, minmax(0, 7rem));
+  grid-template-columns: repeat(2, minmax(0, 7rem));
   margin-bottom: 0.75rem;
 }
 
@@ -495,9 +483,7 @@ a {
   margin: 0;
 }
 
-.branch code,
-.paths code,
-.source-block code {
+.branch code {
   font-family: var(--font-mono), ui-monospace, monospace;
 }
 
@@ -543,13 +529,8 @@ a {
   box-shadow: var(--shadow);
 }
 
-.panel h3,
-.step-title {
-  margin: 0;
-}
-
 .panel h3 {
-  margin-top: 1.15rem;
+  margin: 1.15rem 0 0;
   font-size: 0.95rem;
 }
 
@@ -562,9 +543,7 @@ a {
 
 .tldr .lead,
 .panel-body p,
-.points,
-.steps p,
-.paths p {
+.points {
   line-height: 1.55;
 }
 
@@ -574,21 +553,16 @@ a {
 }
 
 .points,
-.steps,
-.paths,
 .chips {
   margin: 0.45rem 0 0;
   padding: 0;
 }
 
-.points,
-.paths {
+.points {
   list-style: none;
 }
 
-.points li,
-.paths li,
-.steps li {
+.points li {
   margin-top: 0.55rem;
 }
 
@@ -605,46 +579,6 @@ a {
   background: var(--panel-muted);
   padding: 0.2rem 0.6rem;
   font-size: 0.88rem;
-}
-
-.steps {
-  list-style: none;
-  counter-reset: step;
-}
-
-.steps > li {
-  position: relative;
-  padding-left: 2.1rem;
-}
-
-.steps > li::before {
-  counter-increment: step;
-  content: counter(step);
-  position: absolute;
-  left: 0;
-  top: 0.15rem;
-  color: var(--accent);
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: 0.85rem;
-}
-
-.step-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.75rem;
-  align-items: flex-start;
-}
-
-.paths code {
-  display: inline-block;
-  margin-bottom: 0.15rem;
-  font-size: 0.9rem;
-}
-
-.paths p,
-.steps p:not(.step-title) {
-  margin: 0.15rem 0 0;
-  color: var(--muted);
 }
 
 .master-toolbar {
@@ -677,9 +611,7 @@ a {
   white-space: pre-wrap;
 }
 
-.copy-button,
-.source-toggle,
-.diagram-zoom button {
+.copy-button {
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--panel-muted);
@@ -695,78 +627,6 @@ a {
   border-color: transparent;
   font-size: 0.95rem;
   padding: 0.55rem 0.95rem;
-}
-
-.diagram-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 0.6rem;
-  align-items: center;
-  margin-bottom: 0.75rem;
-}
-
-.diagram-zoom {
-  display: flex;
-  gap: 0.35rem;
-}
-
-.diagram-frame {
-  overflow: auto;
-  min-height: 320px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--diagram-canvas);
-  color: var(--diagram-ink);
-  padding: 1rem;
-}
-
-.diagram-scale {
-  margin-inline: auto;
-}
-
-.diagram-frame svg {
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  height: auto;
-  margin-inline: auto;
-}
-
-.diagram-frame svg .node rect,
-.diagram-frame svg .node polygon,
-.diagram-frame svg .node circle,
-.diagram-frame svg .node ellipse {
-  stroke: var(--diagram-stroke);
-}
-
-.diagram-frame svg .edgePath path,
-.diagram-frame svg .flowchart-link {
-  stroke: var(--diagram-ink);
-}
-
-.diagram-error {
-  margin: 0 0 0.75rem;
-  padding: 0.75rem 0.9rem;
-  border-radius: 12px;
-  background: var(--danger-bg);
-  color: var(--danger);
-}
-
-.source-toggle {
-  margin-top: 0.8rem;
-}
-
-.source-block {
-  overflow: auto;
-  margin: 0.6rem 0 0;
-  padding: 0.8rem;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--panel-muted);
-  color: var(--foreground);
-  font-size: 0.82rem;
-  line-height: 1.45;
 }
 
 .accordion {
@@ -816,7 +676,6 @@ a {
   .hero-row,
   .repo-header,
   .topbar,
-  .step-row,
   .master-toolbar {
     align-items: stretch;
     flex-direction: column;

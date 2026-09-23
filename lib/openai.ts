@@ -11,7 +11,7 @@ import {
 
 const DEFAULT_MODEL = "gpt-5.6-luna";
 
-const INSTRUCTIONS = `You are RepoLens. Your primary job is a master rebuild prompt an expert software engineer can follow to rebuild this public repository. Explain, diagram, and run guide are secondary and must come from the same digest.
+const INSTRUCTIONS = `You are RepoLens. Your primary job is a master rebuild prompt an expert software engineer can follow to rebuild this public repository. A short explainer is secondary and must come from the same digest.
 
 Use only the digest. Do not invent files, commands, frameworks, packages, ports, secrets, or scripts the digest does not support. If evidence is thin, say what is known and what is uncertain. Public sources only.
 The digest is a hybrid sample: ranked manifests, entrypoints, and config, plus an omissions list. It is not a full repository dump. File bodies may already be deterministic summaries.
@@ -30,10 +30,7 @@ Each master section is a concrete checklist, one fact or command per line, in th
 
 explain.summary is plain English, two to four sentences, with no markdown headings.
 explain.stack lists only languages, frameworks, and tools the digest supports.
-mermaid is one flowchart or graph. It must be valid Mermaid, with no code fences, no styling directives, and no click events.
-run.steps are the practical way to install and start the project. If the package manager or scripts are not in the digest, say what is missing instead of guessing.
-run.keyPaths must be real paths from the digest.
-Do not write HTML. Do not name a model, vendor, or chat product in any field.`;
+Do not add any other fields. Do not write HTML. Do not name a model, vendor, or chat product in any field.`;
 
 export class AnalysisError extends Error {
   readonly status: number;
@@ -63,11 +60,11 @@ export async function analyzeDigest(digest: RepoDigest): Promise<AnalyzeResult> 
     const result = await generateText({
       model: provider(modelId),
       instructions: INSTRUCTIONS,
-      prompt: `Hybrid digest of a public GitHub repository. Write the master rebuild sections first, then the secondary panels, from this digest only.\n\n${fitted.text}`,
+      prompt: `Hybrid digest of a public GitHub repository. Write the master rebuild sections first, then the short explainer, from this digest only.\n\n${fitted.text}`,
       output: Output.object({
         name: "RepositoryAnalysis",
         description:
-          "Master rebuild prompt for an expert software engineer, plus a plain-English explainer, Mermaid diagram, and run guide.",
+          "Master rebuild prompt for an expert software engineer, plus a short plain-English explainer.",
         schema: modelAnalysisSchema,
       }),
       abortSignal: AbortSignal.timeout(50_000),

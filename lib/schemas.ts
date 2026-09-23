@@ -15,35 +15,12 @@ export const analyzeRequestSchema = z.object({
 const nonEmpty = z.string().trim().min(1);
 
 export const explainPanelSchema = z.object({
-  summary: nonEmpty.describe("Plain-English overview in a few sentences."),
-  purpose: nonEmpty.describe("What a user of this project gets from it."),
-  audience: nonEmpty.describe("Who the project is for."),
+  summary: nonEmpty.describe("Plain-English overview in two to four sentences."),
   stack: z
     .array(nonEmpty)
     .min(1)
     .max(12)
     .describe("Languages, frameworks, and tools evidenced by the digest."),
-  highlights: z
-    .array(nonEmpty)
-    .min(1)
-    .max(8)
-    .describe("Concrete observations, one sentence each."),
-});
-
-export const runStepSchema = z.object({
-  title: nonEmpty,
-  detail: nonEmpty.describe("What to do, including commands when the digest supports them."),
-});
-
-export const keyPathSchema = z.object({
-  path: nonEmpty.describe("Repository-relative path."),
-  why: nonEmpty.describe("Why this path matters."),
-});
-
-export const runGuideSchema = z.object({
-  prerequisites: z.array(nonEmpty).max(8),
-  steps: z.array(runStepSchema).min(1).max(10),
-  keyPaths: z.array(keyPathSchema).min(1).max(12),
 });
 
 export const analyzeResultSchema = z.object({
@@ -60,10 +37,6 @@ export const analyzeResultSchema = z.object({
     .max(40)
     .describe("Paths and limits the digest skipped, clipped, or left unfetched."),
   explain: explainPanelSchema,
-  mermaid: nonEmpty.describe(
-    "A single valid Mermaid flowchart or graph with no code fences.",
-  ),
-  run: runGuideSchema,
 });
 
 /**
@@ -123,33 +96,10 @@ export const modelAnalysisSchema = z.object({
     .string()
     .describe("One-sentence description grounded in the digest. Empty if unknown."),
   explain: z.object({
-    summary: z.string().describe("Plain-English overview in a few sentences."),
-    purpose: z.string().describe("What a user of this project gets from it."),
-    audience: z.string().describe("Who the project is for."),
+    summary: z.string().describe("Plain-English overview in two to four sentences."),
     stack: z
       .array(z.string())
       .describe("Languages, frameworks, and tools evidenced by the digest."),
-    highlights: z
-      .array(z.string())
-      .describe("Concrete observations, one sentence each."),
-  }),
-  mermaid: z
-    .string()
-    .describe("Valid Mermaid flowchart or graph. No markdown fences, no styling, no click events."),
-  run: z.object({
-    prerequisites: z.array(z.string()),
-    steps: z.array(
-      z.object({
-        title: z.string(),
-        detail: z.string(),
-      }),
-    ),
-    keyPaths: z.array(
-      z.object({
-        path: z.string(),
-        why: z.string(),
-      }),
-    ),
   }),
 });
 

@@ -23,8 +23,6 @@ export function Progress({ stage }: { stage: number }) {
         <div className="skeleton-tabs">
           <span className="skeleton-block skeleton-pill" />
           <span className="skeleton-block skeleton-pill" />
-          <span className="skeleton-block skeleton-pill" />
-          <span className="skeleton-block skeleton-pill" />
         </div>
         <div className="skeleton-card">
           <span className="skeleton-block skeleton-line wide" />
